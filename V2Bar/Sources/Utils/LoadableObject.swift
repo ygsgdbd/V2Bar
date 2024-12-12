@@ -1,56 +1,38 @@
 import SwiftUI
 import Combine
 
-/// 表示一个可加载对象的状态
 @MainActor
 class LoadableObject<T>: ObservableObject {
-    enum State {
-        case idle
-        case loading
-        case loaded(T)
-        case error(Error)
-        
-        var value: T? {
-            if case .loaded(let value) = self {
-                return value
-            }
-            return nil
-        }
-        
-        var error: Error? {
-            if case .error(let error) = self {
-                return error
-            }
-            return nil
-        }
-        
-        var isLoading: Bool {
-            if case .loading = self {
-                return true
-            }
-            return false
-        }
-    }
-    
-    @Published private(set) var state: State = .idle
-    
-    var value: T? { state.value }
-    var error: Error? { state.error }
-    var isLoading: Bool { state.isLoading }
+    @Published private(set) var value: T?
+    @Published private(set) var error: Error?
+    @Published private(set) var isLoading = false
     
     func load(_ operation: @escaping () async throws -> T) {
+        // 如果已经有数据，不设置 isLoading 状态
+        let shouldShowLoading = value == nil
+        
+        if shouldShowLoading {
+            isLoading = true
+            error = nil
+        }
+        
         Task {
-            state = .loading
             do {
-                let value = try await operation()
-                state = .loaded(value)
+                value = try await operation()
+                error = nil
             } catch {
-                state = .error(error)
+                self.error = error
+            }
+            
+            if shouldShowLoading {
+                isLoading = false
             }
         }
     }
     
     func reset() {
-        state = .idle
+        value = nil
+        error = nil
+        isLoading = false
     }
 } 

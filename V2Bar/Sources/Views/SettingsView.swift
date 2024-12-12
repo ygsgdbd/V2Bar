@@ -32,12 +32,22 @@ struct SettingsView: View {
                     .gridCellColumns(1)
                     
                     HStack(spacing: 8) {
-                        Button("编辑") {
+                        Button {
                             showTokenAlert()
+                        } label: {
+                            Text("编辑")
                         }
                         
-                        Button("清除", role: .destructive) {
+                        Button {
+                            NSWorkspace.shared.open(URL(string: "https://www.v2ex.com/settings/tokens")!)
+                        } label: {
+                            Text("管理")
+                        }
+                        
+                        Button(role: .destructive) {
                             Task { await viewModel.clearToken() }
+                        } label: {
+                            Text("清除")
                         }
                     }
                     .gridCellColumns(1)
@@ -45,50 +55,8 @@ struct SettingsView: View {
                     .buttonStyle(.plain)
                     .frame(maxWidth: .infinity, alignment: .trailing)
                 }
-                
-                Divider()
-                    .gridCellUnsizedAxes(.horizontal)
-                    .padding(.vertical, 2)
-                    .gridCellColumns(2)
-                
-                // 管理令牌
-                GridRow {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("管理令牌")
-                            .font(.system(size: 12))
-                        Text("在 V2EX 网站上管理访问令牌")
-                            .font(.system(size: 11))
-                            .foregroundColor(.secondary)
-                            .lineLimit(1)
-                    }
-                    .gridCellColumns(1)
-                    
-                    Link(destination: URL(string: "https://www.v2ex.com/settings/tokens")!) {
-                        Image(systemName: "arrow.up.right")
-                            .font(.system(size: 12))
-                            .foregroundColor(.secondary)
-                    }
-                    .gridCellColumns(1)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-                }
             }
             .padding(12)
-            
-            Divider()
-            
-            // 底部按钮
-            HStack(spacing: 12) {
-                Spacer()
-                
-                Button("退出") {
-                    NSApplication.shared.terminate(nil)
-                }
-                .buttonStyle(.borderless)
-                .font(.system(size: 11))
-                .keyboardShortcut("q", modifiers: .command)
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
         }
     }
     

@@ -6,47 +6,59 @@ struct NotificationsView: View {
     @State private var hoveredNotificationId: Int?
     
     var body: some View {
-        VStack(spacing: 0) {
-            VStack {
-                if viewModel.isNotificationsLoading {
-                    ProgressView()
-                } else if let error = viewModel.notificationsError {
-                    VStack {
-                        Image(systemName: "exclamationmark.triangle")
-                            .foregroundColor(.red)
-                        Text(error.localizedDescription)
-                            .foregroundColor(.secondary)
-                            .font(.caption)
-                    }
-                } else if viewModel.notifications.isEmpty {
-                    Text("暂无通知")
+        Group {
+            if !viewModel.notifications.isEmpty {
+                // 有缓存数据，直接显示列表
+                notificationsList
+            } else if viewModel.isNotificationsLoading {
+                // 无缓存数据且正在加载
+                ProgressView()
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+            } else if let error = viewModel.notificationsError {
+                VStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .foregroundColor(.red)
+                        .font(.title2)
+                    Text(error.localizedDescription)
                         .foregroundColor(.secondary)
-                } else {
-                    List(viewModel.notifications.enumerated().map { $0 }, id: \.element.id) { index, notification in
-                        NotificationRow(notification: notification, index: index + 1)
-                            .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
-                            .listRowBackground(
-                                RoundedRectangle(cornerRadius: 0)
-                                    .fill(hoveredNotificationId == notification.id ? Color.gray.opacity(0.1) : Color.clear)
-                            )
-                            .onHover { isHovered in
-                                hoveredNotificationId = isHovered ? notification.id : nil
-                            }
-                            .onTapGesture {
-                                if let topicLink = notification.links.first(where: { $0.url.path.hasPrefix("/t/") }) {
-                                    NSWorkspace.shared.open(topicLink.url)
-                                }
-                            }
-                            .pointingCursor
-                    }
-                    .listStyle(.plain)
-                    .scrollIndicators(.hidden)
+                        .font(.caption)
+                        .multilineTextAlignment(.center)
                 }
-            }
-            .task {
-                await viewModel.fetchNotifications()
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+            } else {
+                // 无缓存数据且加载完成（空列表）
+                Text("暂无通知")
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
             }
         }
+        .task {
+            await viewModel.fetchNotifications()
+        }
+    }
+    
+    private var notificationsList: some View {
+        List(viewModel.notifications.enumerated().map { $0 }, id: \.element.id) { index, notification in
+            NotificationRow(notification: notification, index: index + 1)
+                .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
+                .listRowBackground(
+                    RoundedRectangle(cornerRadius: 0)
+                        .fill(hoveredNotificationId == notification.id ? Color.gray.opacity(0.1) : Color.clear)
+                )
+                .onHover { isHovered in
+                    hoveredNotificationId = isHovered ? notification.id : nil
+                }
+                .onTapGesture {
+                    if let topicLink = notification.links.first(where: { $0.url.path.hasPrefix("/t/") }) {
+                        NSWorkspace.shared.open(topicLink.url)
+                    }
+                }
+                .pointingCursor
+        }
+        .listStyle(.plain)
     }
 }
 

@@ -12,20 +12,27 @@ struct ContentView: View {
                 // 已登录状态显示主界面
                 VStack(spacing: 0) {
                     UserProfileView()
-                        .height(80)
                     
                     Divider()
                     
                     NotificationsView()
-                        .maxHeight(.infinity)
-                        .minHeight(300)
+                        .minHeight(260)
                     
                     Divider()
                     
                     SettingsView()
+                    
+                    Divider()
+                    
+                    QuickLinksView()
+                    
+                    Divider()
+                    
+                    BottomButtonsView()
                 }
                 .environmentObject(viewModel)
                 .task {
+                    // 初始化时加载所有数据
                     await viewModel.refreshAll()
                 }
             } else {
@@ -34,7 +41,6 @@ struct ContentView: View {
                     .environmentObject(viewModel)
             }
         }
-        .width(420)
-        .minHeight(600)
+        .width(380)
     }
 }
