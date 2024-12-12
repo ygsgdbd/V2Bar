@@ -1,4 +1,5 @@
 import SwiftUI
+import SwifterSwift
 
 struct NotificationsView: View {
     @State private var notifications: [Notification] = []
@@ -99,7 +100,7 @@ struct NotificationRow: View {
                     .foregroundColor(.primary)
                 
                 // 回复内容
-                if let payload = notification.payload, !payload.isEmpty {
+                if let payload = notification.payload, !payload.isWhitespace {
                     Text(payload)
                         .font(.callout)
                         .foregroundColor(.secondary)
