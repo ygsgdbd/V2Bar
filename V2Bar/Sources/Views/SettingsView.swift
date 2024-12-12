@@ -12,14 +12,18 @@ struct SettingsView: View {
                 // 访问令牌
                 GridRow {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("访问令牌")
+                        Text("Token")
                             .font(.system(size: 12))
                         HStack(spacing: 8) {
                             Text(viewModel.maskedToken)
                                 .font(.system(size: 12))
                             
-                            if viewModel.tokenInfo != nil {
-                                Text(viewModel.tokenExpirationText)
+                            if viewModel.isTokenLoading {
+                                ProgressView()
+                                    .controlSize(.small)
+                                    .scaleEffect(0.7)
+                            } else if let formatted = viewModel.tokenInfo?.formattedExpirationText {
+                                Text(formatted)
                                     .font(.system(size: 11))
                             }
                         }
@@ -75,26 +79,6 @@ struct SettingsView: View {
             // 底部按钮
             HStack(spacing: 12) {
                 Spacer()
-                
-                Button {
-                    Task {
-                        await viewModel.refreshTokenInfo()
-                    }
-                } label: {
-                    HStack(spacing: 4) {
-                        if viewModel.isTokenLoading {
-                            ProgressView()
-                                .controlSize(.small)
-                                .scaleEffect(0.7)
-                        } else {
-                            Text("刷新")
-                                .font(.system(size: 11))
-                        }
-                    }
-                }
-                .buttonStyle(.borderless)
-                .keyboardShortcut("r", modifiers: .command)
-                .disabled(viewModel.isTokenLoading)
                 
                 Button("退出") {
                     NSApplication.shared.terminate(nil)

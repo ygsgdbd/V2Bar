@@ -9,7 +9,6 @@ struct UserProfileView: View {
         Group {
             if viewModel.isProfileLoading {
                 ProgressView()
-                    .frame(height: 80)
             } else if let error = viewModel.profileError {
                 VStack(spacing: 8) {
                     Image(systemName: "exclamationmark.triangle")
