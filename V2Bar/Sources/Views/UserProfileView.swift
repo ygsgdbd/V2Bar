@@ -71,7 +71,6 @@ struct UserProfileView: View {
                     .clipShape(Circle())
                 }
                 .buttonStyle(.plain)
-                .pointingCursor
                 
                 VStack(alignment: .leading, spacing: 4) {
                     Link(destination: URL(string: profile.url)!) {
@@ -80,7 +79,6 @@ struct UserProfileView: View {
                             .foregroundColor(.primary)
                     }
                     .buttonStyle(.plain)
-                    .pointingCursor
                     
                     HStack(spacing: 8) {
                         HStack(spacing: 4) {

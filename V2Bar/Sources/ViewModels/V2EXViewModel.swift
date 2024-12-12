@@ -5,9 +5,9 @@ import Combine
 @MainActor
 class V2EXViewModel: ObservableObject {
     // MARK: - States
-    private let tokenState = LoadableObject<V2EXTokenInfo>()
-    private let profileState = LoadableObject<V2EXUserProfile>()
-    private let notificationsState = LoadableObject<[Notification]>()
+    private let tokenState = LoadableObject<V2EXTokenInfo?>(defaultValue: nil)
+    private let profileState = LoadableObject<V2EXUserProfile?>(defaultValue: nil)
+    private let notificationsState = LoadableObject<[Notification]>(defaultValue: [])
     private var cancellables = Set<AnyCancellable>()
     
     // MARK: - Token Info
@@ -33,7 +33,7 @@ class V2EXViewModel: ObservableObject {
     var profileError: Error? { profileState.error }
     
     // MARK: - Notifications
-    var notifications: [Notification] { notificationsState.value ?? [] }
+    var notifications: [Notification] { notificationsState.value }
     var isNotificationsLoading: Bool { notificationsState.isLoading }
     var notificationsError: Error? { notificationsState.error }
     
@@ -109,9 +109,9 @@ class V2EXViewModel: ObservableObject {
     /// 清除当前的访问令牌
     func clearToken() async {
         Defaults[.token] = nil
-        tokenState.reset()
-        profileState.reset()
-        notificationsState.reset()
+        tokenState.reset(nil)
+        profileState.reset(nil)
+        notificationsState.reset([])
     }
     
     /// 刷新所有数据
