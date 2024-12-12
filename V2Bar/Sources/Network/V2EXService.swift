@@ -1,5 +1,10 @@
 import Foundation
 import Alamofire
+import Defaults
+
+extension Defaults.Keys {
+    static let v2exToken = Key<String?>("v2ex_token")
+}
 
 actor V2EXService {
     static let shared = V2EXService()
@@ -18,26 +23,24 @@ actor V2EXService {
             eventMonitors: [monitor]
         )
         
-        // 从 UserDefaults 加载保存的 token
-        if let savedToken = UserDefaults.standard.string(forKey: "v2ex_token") {
-            self.token = savedToken
-        }
+        // 从 Defaults 加载保存的 token
+        self.token = Defaults[.v2exToken]
     }
     
     // MARK: - Token Management
     
     func setToken(_ token: String) {
         self.token = token
-        // 保存 token 到 UserDefaults
+        // 保存 token 到 Defaults
         Task { @MainActor in
-            UserDefaults.standard.set(token, forKey: "v2ex_token")
+            Defaults[.v2exToken] = token
         }
     }
     
     func clearToken() {
         self.token = nil
         Task { @MainActor in
-            UserDefaults.standard.removeObject(forKey: "v2ex_token")
+            Defaults[.v2exToken] = nil
         }
     }
     
@@ -93,7 +96,7 @@ actor V2EXService {
         try await authorizedRequest(V2EXRouter.topic(id: id))
     }
     
-    /// 获取主���回复
+    /// 获取主题回复
     func fetchTopicReplies(id: Int, page: Int? = nil) async throws -> Data {
         try await authorizedRequest(V2EXRouter.topicReplies(id: id, page: page))
     }

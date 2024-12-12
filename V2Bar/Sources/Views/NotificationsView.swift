@@ -23,8 +23,8 @@ struct NotificationsView: View {
                 Text("暂无通知")
                     .foregroundColor(.secondary)
             } else {
-                List(notifications) { notification in
-                    NotificationRow(notification: notification)
+                List(notifications.enumerated().map { $0 }, id: \.element.id) { index, notification in
+                    NotificationRow(notification: notification, index: index + 1)
                         .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
                         .listRowBackground(
                             RoundedRectangle(cornerRadius: 0)
@@ -38,6 +38,7 @@ struct NotificationsView: View {
                                 NSWorkspace.shared.open(topicLink.url)
                             }
                         }
+                        .pointingCursor
                 }
                 .listStyle(.plain)
                 .scrollIndicators(.hidden)
@@ -70,53 +71,61 @@ struct NotificationsView: View {
 
 struct NotificationRow: View {
     let notification: Notification
-    private static let dateFormatter: RelativeDateTimeFormatter = {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.locale = Locale.current
-        return formatter
-    }()
+    let index: Int
+    @State private var isUsernameHovered = false
     
     var body: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 6) {
-                // 通知标题
-                HStack(alignment: .center, spacing: 6) {
+        VStack(alignment: .leading, spacing: 6) {
+            // 通知标题
+            HStack(alignment: .center, spacing: 6) {
+                Link(destination: URL(string: "https://v2ex.com/member/\(notification.member.username)")!) {
                     Text(notification.member.username)
                         .fontWeight(.medium)
                         .foregroundColor(.primary)
-                    
-                    Text("•")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                    
-                    Text(Self.dateFormatter.localizedString(for: Date(timeIntervalSince1970: TimeInterval(notification.created)), relativeTo: Date()))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                        .underline(isUsernameHovered)
                 }
-                
-                // 通知内容
-                Text(notification.plainText)
-                    .font(.subheadline)
-                    .foregroundColor(.primary)
-                
-                // 回复内容
-                if let payload = notification.payload, !payload.isWhitespace {
-                    Text(payload)
-                        .font(.callout)
-                        .foregroundColor(.secondary)
-                        .padding(.leading, 8)
-                        .padding(.vertical, 4)
-                        .overlay(
-                            Rectangle()
-                                .fill(Color.secondary.opacity(0.2))
-                                .frame(width: 2)
-                                .padding(.vertical, 4),
-                            alignment: .leading
-                        )
+                .buttonStyle(.plain)
+                .onHover { hovering in
+                    isUsernameHovered = hovering
                 }
+                .pointingCursor
+                
+                Text("•")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                
+                Text(Date.fromUnixTimestamp(notification.created).relativeString)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                Spacer()
+                
+                Text("#\(index)")
+                    .font(.caption)
+                    .foregroundColor(.secondary.opacity(0.8))
+                    .monospacedDigit()
             }
             
-            Spacer(minLength: 0)
+            // 通知内容
+            Text(notification.plainText)
+                .font(.subheadline)
+                .foregroundColor(.primary)
+            
+            // 回复内容
+            if let payload = notification.payload, !payload.isWhitespace {
+                Text(payload)
+                    .font(.callout)
+                    .foregroundColor(.secondary)
+                    .padding(.leading, 8)
+                    .padding(.vertical, 4)
+                    .overlay(
+                        Rectangle()
+                            .fill(Color.secondary.opacity(0.2))
+                            .frame(width: 2)
+                            .padding(.vertical, 4),
+                        alignment: .leading
+                    )
+            }
         }
         .padding(.vertical, 4)
     }
