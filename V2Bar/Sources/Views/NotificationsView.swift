@@ -36,9 +36,6 @@ struct NotificationsView: View {
                     .padding(.vertical, 12)
             }
         }
-        .task {
-            await viewModel.fetchNotifications()
-        }
     }
     
     private var notificationsList: some View {

@@ -16,7 +16,7 @@ struct ContentView: View {
                     Divider()
                     
                     NotificationsView()
-                        .minHeight(280)
+                        .minHeight(320)
                     
                     Divider()
                     

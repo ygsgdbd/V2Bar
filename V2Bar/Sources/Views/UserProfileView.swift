@@ -98,9 +98,6 @@ struct UserProfileView: View {
                 .padding(.vertical, 12)
             }
         }
-        .task {
-            await viewModel.fetchProfile()
-        }
     }
     
     @ViewBuilder
