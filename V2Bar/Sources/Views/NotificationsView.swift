@@ -71,8 +71,7 @@ struct NotificationRow: View {
     let notification: Notification
     private static let dateFormatter: RelativeDateTimeFormatter = {
         let formatter = RelativeDateTimeFormatter()
-        formatter.locale = Locale(identifier: "zh_CN")
-        formatter.unitsStyle = .short
+        formatter.locale = Locale.current
         return formatter
     }()
     
@@ -98,15 +97,6 @@ struct NotificationRow: View {
                 Text(notification.plainText)
                     .font(.subheadline)
                     .foregroundColor(.primary)
-                    .overlay(alignment: .leading) {
-                        // 覆盖可点击的链接
-                        HStack {
-                            ForEach(notification.links, id: \.url) { link in
-                                Link("", destination: link.url)
-                                    .frame(width: 0, height: 0)
-                            }
-                        }
-                    }
                 
                 // 回复内容
                 if let payload = notification.payload, !payload.isEmpty {
