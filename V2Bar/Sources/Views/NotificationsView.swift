@@ -8,44 +8,49 @@ struct NotificationsView: View {
     @State private var hoveredNotificationId: Int?
     
     var body: some View {
-        VStack {
-            if isLoading {
-                ProgressView()
-            } else if let error = error {
-                VStack {
-                    Image(systemName: "exclamationmark.triangle")
-                        .foregroundColor(.red)
-                    Text(error.localizedDescription)
+        VStack(spacing: 0) {
+            VStack {
+                if isLoading {
+                    ProgressView()
+                } else if let error = error {
+                    VStack {
+                        Image(systemName: "exclamationmark.triangle")
+                            .foregroundColor(.red)
+                        Text(error.localizedDescription)
+                            .foregroundColor(.secondary)
+                            .font(.caption)
+                    }
+                } else if notifications.isEmpty {
+                    Text("暂无通知")
                         .foregroundColor(.secondary)
-                        .font(.caption)
-                }
-            } else if notifications.isEmpty {
-                Text("暂无通知")
-                    .foregroundColor(.secondary)
-            } else {
-                List(notifications.enumerated().map { $0 }, id: \.element.id) { index, notification in
-                    NotificationRow(notification: notification, index: index + 1)
-                        .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
-                        .listRowBackground(
-                            RoundedRectangle(cornerRadius: 0)
-                                .fill(hoveredNotificationId == notification.id ? Color.gray.opacity(0.1) : Color.clear)
-                        )
-                        .onHover { isHovered in
-                            hoveredNotificationId = isHovered ? notification.id : nil
-                        }
-                        .onTapGesture {
-                            if let topicLink = notification.links.first(where: { $0.url.path.hasPrefix("/t/") }) {
-                                NSWorkspace.shared.open(topicLink.url)
+                } else {
+                    List(notifications.enumerated().map { $0 }, id: \.element.id) { index, notification in
+                        NotificationRow(notification: notification, index: index + 1)
+                            .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
+                            .listRowBackground(
+                                RoundedRectangle(cornerRadius: 0)
+                                    .fill(hoveredNotificationId == notification.id ? Color.gray.opacity(0.1) : Color.clear)
+                            )
+                            .onHover { isHovered in
+                                hoveredNotificationId = isHovered ? notification.id : nil
                             }
-                        }
-                        .pointingCursor
+                            .onTapGesture {
+                                if let topicLink = notification.links.first(where: { $0.url.path.hasPrefix("/t/") }) {
+                                    NSWorkspace.shared.open(topicLink.url)
+                                    NSApplication.shared.hide(nil)
+                                }
+                            }
+                            .pointingCursor
+                    }
+                    .listStyle(.plain)
+                    .scrollIndicators(.hidden)
                 }
-                .listStyle(.plain)
-                .scrollIndicators(.hidden)
             }
-        }
-        .task {
-            await fetchNotifications()
+            .task {
+                await fetchNotifications()
+            }
+            
+            SettingsView()
         }
     }
     
@@ -75,7 +80,7 @@ struct NotificationRow: View {
     @State private var isUsernameHovered = false
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             // 通知标题
             HStack(alignment: .center, spacing: 6) {
                 Link(destination: URL(string: "https://v2ex.com/member/\(notification.member.username)")!) {
@@ -110,12 +115,14 @@ struct NotificationRow: View {
             Text(notification.plainText)
                 .font(.subheadline)
                 .foregroundColor(.primary)
+                .lineSpacing(4)
             
             // 回复内容
             if let payload = notification.payload, !payload.isWhitespace {
                 Text(payload)
                     .font(.callout)
                     .foregroundColor(.secondary)
+                    .lineSpacing(4)
                     .padding(.leading, 8)
                     .padding(.vertical, 4)
                     .overlay(
@@ -127,6 +134,6 @@ struct NotificationRow: View {
                     )
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 6)
     }
 } 
