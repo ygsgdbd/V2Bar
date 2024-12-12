@@ -2,14 +2,14 @@ import SwiftUI
 
 @main
 struct V2BarApp: App {
-    @StateObject private var notificationsViewModel = NotificationsViewModel()
-    @StateObject private var userProfileViewModel = UserProfileViewModel()
     
     var body: some Scene {
-        MenuBarExtra("V2Bar", systemImage: "network") {
+        MenuBarExtra {
             ContentView()
-                .environmentObject(notificationsViewModel)
-                .environmentObject(userProfileViewModel)
+        } label: {
+            Text("V2")
+                .font(.custom("Futura", size: 12))
+                .fontWeight(.medium)
         }
         .menuBarExtraStyle(.window)
     }

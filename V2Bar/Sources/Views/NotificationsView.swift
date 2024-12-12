@@ -2,15 +2,15 @@ import SwiftUI
 import SwifterSwift
 
 struct NotificationsView: View {
-    @EnvironmentObject private var viewModel: NotificationsViewModel
+    @EnvironmentObject private var viewModel: V2EXViewModel
     @State private var hoveredNotificationId: Int?
     
     var body: some View {
         VStack(spacing: 0) {
             VStack {
-                if viewModel.isLoading {
+                if viewModel.isNotificationsLoading {
                     ProgressView()
-                } else if let error = viewModel.error {
+                } else if let error = viewModel.notificationsError {
                     VStack {
                         Image(systemName: "exclamationmark.triangle")
                             .foregroundColor(.red)

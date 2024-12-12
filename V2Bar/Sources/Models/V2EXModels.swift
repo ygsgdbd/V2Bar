@@ -109,7 +109,7 @@ struct V2EXTokenInfo: Codable {
     let token: String
     let scope: String
     let expiration: Int
-    let good_for: Int
+    let good_for: Int?
     let total_used: Int
     let last_used: Int
     let created: Int

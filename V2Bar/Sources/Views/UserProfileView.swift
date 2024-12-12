@@ -2,15 +2,15 @@ import SwiftUI
 import SwifterSwift
 
 struct UserProfileView: View {
-    @EnvironmentObject private var viewModel: UserProfileViewModel
+    @EnvironmentObject private var viewModel: V2EXViewModel
     @State private var isAvatarHovered = false
     
     var body: some View {
         Group {
-            if viewModel.isLoading {
+            if viewModel.isProfileLoading {
                 ProgressView()
                     .frame(height: 80)
-            } else if let error = viewModel.error {
+            } else if let error = viewModel.profileError {
                 VStack(spacing: 8) {
                     Image(systemName: "exclamationmark.triangle")
                         .foregroundColor(.red)

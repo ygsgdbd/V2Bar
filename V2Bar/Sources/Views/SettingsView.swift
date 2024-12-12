@@ -1,107 +1,144 @@
 import SwiftUI
-import SwifterSwift
+import Defaults
 import AppKit
 
 struct SettingsView: View {
-    @Environment(\.openURL) private var openURL
-    @StateObject private var viewModel = SettingsViewModel()
+    @EnvironmentObject private var viewModel: V2EXViewModel
+    @State private var editingToken = ""
     
     var body: some View {
         VStack(spacing: 0) {
+            Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 8) {
+                // 访问令牌
+                GridRow {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("访问令牌")
+                            .font(.system(size: 12))
+                        HStack(spacing: 8) {
+                            Text(viewModel.maskedToken)
+                                .font(.system(size: 12))
+                            
+                            if viewModel.tokenInfo != nil {
+                                Text(viewModel.tokenExpirationText)
+                                    .font(.system(size: 11))
+                            }
+                        }
+                        .foregroundColor(.secondary)
+                    }
+                    .gridCellColumns(1)
+                    
+                    HStack(spacing: 8) {
+                        Button("编辑") {
+                            showTokenAlert()
+                        }
+                        
+                        Button("清除", role: .destructive) {
+                            Task { await viewModel.clearToken() }
+                        }
+                    }
+                    .gridCellColumns(1)
+                    .controlSize(.small)
+                    .buttonStyle(.plain)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                }
+                
+                Divider()
+                    .gridCellUnsizedAxes(.horizontal)
+                    .padding(.vertical, 2)
+                    .gridCellColumns(2)
+                
+                // 管理令牌
+                GridRow {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("管理令牌")
+                            .font(.system(size: 12))
+                        Text("在 V2EX 网站上管理访问令牌")
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                    }
+                    .gridCellColumns(1)
+                    
+                    Link(destination: URL(string: "https://www.v2ex.com/settings/tokens")!) {
+                        Image(systemName: "arrow.up.right")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                    }
+                    .gridCellColumns(1)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                }
+            }
+            .padding(12)
+            
             Divider()
             
-            if viewModel.isLoading {
-                HStack {
-                    ProgressView()
-                        .controlSize(.small)
-                    Spacer()
-                }
-                .padding(.horizontal)
-                .padding(.vertical, 8)
-            } else {
-                HStack(spacing: 12) {
-                    if viewModel.token != nil {
-                        HStack(spacing: 8) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(.green)
-                            Text(viewModel.maskedToken)
-                                .foregroundColor(.secondary)
-                                .font(.caption)
-                            if let tokenInfo = viewModel.tokenInfo {
-                                Text("•")
-                                    .font(.caption2)
-                                    .foregroundColor(.secondary)
-                                Text("有效期至 \(viewModel.tokenExpirationText)")
-                                    .foregroundColor(.secondary)
-                                    .font(.caption)
-                            }
-                            
-                            Button {
-                                showTokenAlert(isEditing: true)
-                            } label: {
-                                Image(systemName: "pencil")
-                                    .font(.caption)
-                            }
-                            .buttonStyle(.plain)
-                            .foregroundColor(.secondary)
-                            
-                            Button {
-                                Task {
-                                    await viewModel.clearToken()
-                                }
-                            } label: {
-                                Image(systemName: "xmark.circle.fill")
-                                    .font(.caption)
-                            }
-                            .buttonStyle(.plain)
-                            .foregroundColor(.red)
-                        }
-                        
-                        Spacer()
-                    } else {
-                        Button("添加 Token") {
-                            showTokenAlert(isEditing: false)
-                        }
-                        .buttonStyle(.plain)
-                        .foregroundColor(.accentColor)
-                        
-                        Spacer()
-                        
-                        if let error = viewModel.error {
-                            Text(error.localizedDescription)
-                                .foregroundColor(.red)
-                                .font(.caption)
+            // 底部按钮
+            HStack(spacing: 12) {
+                Spacer()
+                
+                Button {
+                    Task {
+                        await viewModel.refreshTokenInfo()
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        if viewModel.isTokenLoading {
+                            ProgressView()
+                                .controlSize(.small)
+                                .scaleEffect(0.7)
+                        } else {
+                            Text("刷新")
+                                .font(.system(size: 11))
                         }
                     }
                 }
-                .padding(.horizontal)
-                .padding(.vertical, 8)
+                .buttonStyle(.borderless)
+                .keyboardShortcut("r", modifiers: .command)
+                .disabled(viewModel.isTokenLoading)
+                
+                Button("退出") {
+                    NSApplication.shared.terminate(nil)
+                }
+                .buttonStyle(.borderless)
+                .font(.system(size: 11))
+                .keyboardShortcut("q", modifiers: .command)
             }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
         }
     }
     
-    private func showTokenAlert(isEditing: Bool) {
+    private func showTokenAlert() {
         let alert = NSAlert()
-        alert.messageText = isEditing ? "编辑 Token" : "添加 Token"
-        alert.informativeText = "请输入 V2EX API Token"
+        alert.messageText = "编辑访问令牌"
+        alert.informativeText = "请输入新的访问令牌"
         
+        // 添加输入框
         let input = NSTextField(frame: NSRect(x: 0, y: 0, width: 300, height: 24))
-        input.placeholderString = "请输入 Token"
-        if isEditing, let currentToken = viewModel.token {
-            input.stringValue = currentToken
-        }
+        input.stringValue = Defaults[.token] ?? ""
+        input.placeholderString = "访问令牌"
         alert.accessoryView = input
         
-        alert.addButton(withTitle: isEditing ? "更新" : "添加")
+        // 添加按钮
+        alert.addButton(withTitle: "保存")
         alert.addButton(withTitle: "取消")
         
-        if alert.runModal() == .alertFirstButtonReturn {
-            let token = input.stringValue
-            guard !token.isEmpty else { return }
+        // 获取并隐藏当前窗口
+        if let window = NSApplication.shared.windows.first {
+            window.orderOut(nil)
+            defer { window.makeKeyAndOrderFront(nil) }
             
-            Task { @MainActor in
-                viewModel.newToken = token
-                await viewModel.saveToken()
+            // 显示 alert
+            let response = alert.runModal()
+            if response == .alertFirstButtonReturn {
+                let token = input.stringValue
+                Task {
+                    do {
+                        try await viewModel.saveToken(token)
+                    } catch {
+                        // 错误已经在 ViewModel 中处理
+                    }
+                }
             }
         }
     }
