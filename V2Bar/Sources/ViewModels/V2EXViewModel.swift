@@ -45,27 +45,21 @@ class V2EXViewModel: ObservableObject {
     /// 刷新令牌信息
     func refreshTokenInfo() async {
         tokenState.load {
-            let data = try await V2EXService.shared.fetchCurrentToken()
-            let response = try JSONDecoder().decode(V2EXResponse<V2EXTokenInfo>.self, from: data)
-            return response.result
+            try await V2EXService.shared.request(.token)
         }
     }
     
     /// 刷新用户资料
     func fetchProfile() async {
         profileState.load {
-            let data = try await V2EXService.shared.fetchMemberProfile()
-            let response = try JSONDecoder().decode(V2EXResponse<V2EXUserProfile>.self, from: data)
-            return response.result
+            try await V2EXService.shared.request(.profile)
         }
     }
     
     /// 刷新通知
     func fetchNotifications() async {
         notificationsState.load {
-            let data = try await V2EXService.shared.fetchNotifications()
-            let response = try JSONDecoder().decode(V2EXResponse<[V2EXNotification]>.self, from: data)
-            return response.result
+            try await V2EXService.shared.request(.notifications)
         }
     }
     
@@ -79,7 +73,7 @@ class V2EXViewModel: ObservableObject {
             Defaults[.token] = trimmedToken
             
             // 验证 token 是否有效
-            _ = try await V2EXService.shared.fetchCurrentToken()
+            _ = try await V2EXService.shared.request(.token) as V2EXTokenInfo
             
             // token 有效，更新信息
             await refreshTokenInfo()

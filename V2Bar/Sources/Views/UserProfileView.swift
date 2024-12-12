@@ -32,6 +32,7 @@ struct UserProfileView: View {
             } else if viewModel.profileState.isLoading {
                 // 无缓存数据且正在加载
                 ProgressView()
+                    .controlSize(.small)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
             } else if let error = viewModel.profileState.error {

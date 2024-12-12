@@ -1,41 +1,47 @@
 import Foundation
+import Alamofire
+import Defaults
 
 enum V2EXRouter {
     case token
-    case notifications(page: Int)
-    case member
+    case profile
+    case notifications
+}
+
+extension V2EXRouter: URLRequestConvertible {
+    private var baseURL: URL {
+        URL(string: "https://www.v2ex.com/api/v2")!
+    }
     
-    var path: String {
+    private var method: HTTPMethod {
+        switch self {
+        case .token, .profile, .notifications:
+            return .get
+        }
+    }
+    
+    private var path: String {
         switch self {
         case .token:
             return "/token"
+        case .profile:
+            return "/member"
         case .notifications:
             return "/notifications"
-        case .member:
-            return "/member"
         }
     }
     
-    var method: String {
-        switch self {
-        case .token, .notifications, .member:
-            return "GET"
-        }
-    }
-    
-    var queryItems: [URLQueryItem]? {
-        switch self {
-        case .notifications(let page):
-            return [URLQueryItem(name: "p", value: String(page))]
-        default:
-            return nil
-        }
-    }
-    
-    func url(baseURL: String) -> URL {
-        var components = URLComponents(string: baseURL)!
-        components.path += path
-        components.queryItems = queryItems
-        return components.url!
+    func asURLRequest() throws -> URLRequest {
+        let url = baseURL.appendingPathComponent(path)
+        var request = URLRequest(url: url)
+        request.method = method
+        
+        // 添加通用 headers
+        request.headers = HTTPHeaders([
+            .accept("application/json"),
+            .authorization(bearerToken: Defaults[.token] ?? "")
+        ])
+        
+        return request
     }
 } 
