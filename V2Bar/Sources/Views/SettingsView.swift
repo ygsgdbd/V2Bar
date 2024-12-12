@@ -18,11 +18,11 @@ struct SettingsView: View {
                             Text(viewModel.maskedToken)
                                 .font(.system(size: 12))
                             
-                            if viewModel.isTokenLoading {
+                            if viewModel.tokenState.isLoading {
                                 ProgressView()
                                     .controlSize(.small)
                                     .scaleEffect(0.7)
-                            } else if let formatted = viewModel.tokenInfo?.formattedExpirationText {
+                            } else if let formatted = viewModel.tokenState.value?.formattedExpirationText {
                                 Text(formatted)
                                     .font(.system(size: 11))
                             }
@@ -43,12 +43,6 @@ struct SettingsView: View {
                         } label: {
                             Text("管理")
                         }
-                        
-                        Button(role: .destructive) {
-                            Task { await viewModel.clearToken() }
-                        } label: {
-                            Text("清除")
-                        }
                     }
                     .gridCellColumns(1)
                     .controlSize(.small)
@@ -62,33 +56,29 @@ struct SettingsView: View {
     
     private func showTokenAlert() {
         let alert = NSAlert()
-        alert.messageText = "编辑访问令牌"
-        alert.informativeText = "请输入新的访问令牌"
+        alert.messageText = "设置访问令牌"
+        alert.informativeText = "请输入您的 V2EX 访问令牌"
         
-        // 添加输入框
         let input = NSTextField(frame: NSRect(x: 0, y: 0, width: 300, height: 24))
-        input.stringValue = Defaults[.token] ?? ""
-        input.placeholderString = "访问令牌"
-        alert.accessoryView = input
+        input.placeholderString = "请输入访问令牌"
         
-        // 添加按钮
-        alert.addButton(withTitle: "保存")
+        alert.accessoryView = input
+        alert.addButton(withTitle: "确定")
         alert.addButton(withTitle: "取消")
         
-        // 获取并隐藏当前窗口
-        if let window = NSApplication.shared.windows.first {
-            window.orderOut(nil)
-            defer { window.makeKeyAndOrderFront(nil) }
-            
-            // 显示 alert
-            let response = alert.runModal()
-            if response == .alertFirstButtonReturn {
-                let token = input.stringValue
+        if alert.runModal() == .alertFirstButtonReturn {
+            let inputToken = input.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !inputToken.isEmpty {
                 Task {
                     do {
-                        try await viewModel.saveToken(token)
+                        try await viewModel.saveToken(inputToken)
                     } catch {
-                        // 错误已经在 ViewModel 中处理
+                        let errorAlert = NSAlert()
+                        errorAlert.messageText = "设置失败"
+                        errorAlert.informativeText = error.localizedDescription
+                        errorAlert.alertStyle = .critical
+                        errorAlert.addButton(withTitle: "确定")
+                        errorAlert.runModal()
                     }
                 }
             }

@@ -5,15 +5,10 @@ import Combine
 @MainActor
 class V2EXViewModel: ObservableObject {
     // MARK: - States
-    private let tokenState = LoadableObject<V2EXTokenInfo?>(defaultValue: nil)
-    private let profileState = LoadableObject<V2EXUserProfile?>(defaultValue: nil)
-    private let notificationsState = LoadableObject<[Notification]>(defaultValue: [])
+    let tokenState = LoadableObject<V2EXTokenInfo?>(defaultValue: nil)
+    let profileState = LoadableObject<V2EXUserProfile?>(defaultValue: nil)
+    let notificationsState = LoadableObject<[V2EXNotification]>(defaultValue: [])
     private var cancellables = Set<AnyCancellable>()
-    
-    // MARK: - Token Info
-    var tokenInfo: V2EXTokenInfo? { tokenState.value }
-    var isTokenLoading: Bool { tokenState.isLoading }
-    var tokenError: Error? { tokenState.error }
     
     var maskedToken: String {
         guard let token = Defaults[.token] else { return "未设置" }
@@ -21,21 +16,6 @@ class V2EXViewModel: ObservableObject {
         let suffix = String(token.suffix(4))
         return "\(prefix)****\(suffix)"
     }
-    
-    var tokenExpirationText: String {
-        guard let tokenInfo = tokenInfo else { return "未知" }
-        return tokenInfo.formattedExpirationText
-    }
-    
-    // MARK: - Profile
-    var profile: V2EXUserProfile? { profileState.value }
-    var isProfileLoading: Bool { profileState.isLoading }
-    var profileError: Error? { profileState.error }
-    
-    // MARK: - Notifications
-    var notifications: [Notification] { notificationsState.value }
-    var isNotificationsLoading: Bool { notificationsState.isLoading }
-    var notificationsError: Error? { notificationsState.error }
     
     // MARK: - Initialization
     init() {
@@ -45,16 +25,20 @@ class V2EXViewModel: ObservableObject {
         notificationsState.objectWillChange.sink(receiveValue: objectWillChange.send).store(in: &cancellables)
         
         // 监听 token 变化
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(defaultsChanged),
-            name: UserDefaults.didChangeNotification,
-            object: nil
-        )
-    }
-    
-    deinit {
-        NotificationCenter.default.removeObserver(self)
+        NotificationCenter.default
+            .publisher(for: UserDefaults.didChangeNotification)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                guard let self = self else { return }
+                Task {
+                    if Defaults[.token] != nil {
+                        await self.refreshTokenInfo()
+                    } else {
+                        await self.clearToken()
+                    }
+                }
+            }
+            .store(in: &cancellables)
     }
     
     // MARK: - Public Methods
@@ -80,7 +64,7 @@ class V2EXViewModel: ObservableObject {
     func fetchNotifications() async {
         notificationsState.load {
             let data = try await V2EXService.shared.fetchNotifications()
-            let response = try JSONDecoder().decode(V2EXResponse<[Notification]>.self, from: data)
+            let response = try JSONDecoder().decode(V2EXResponse<[V2EXNotification]>.self, from: data)
             return response.result
         }
     }
@@ -119,17 +103,6 @@ class V2EXViewModel: ObservableObject {
         await refreshTokenInfo()
         await fetchProfile()
         await fetchNotifications()
-    }
-    
-    // MARK: - Private Methods
-    @objc private func defaultsChanged() {
-        Task {
-            if Defaults[.token] != nil {
-                await refreshTokenInfo()
-            } else {
-                await clearToken()
-            }
-        }
     }
 }
 

@@ -7,15 +7,15 @@ struct NotificationsView: View {
     
     var body: some View {
         Group {
-            if !viewModel.notifications.isEmpty {
+            if !viewModel.notificationsState.value.isEmpty {
                 // 有缓存数据，直接显示列表
                 notificationsList
-            } else if viewModel.isNotificationsLoading {
+            } else if viewModel.notificationsState.isLoading {
                 // 无缓存数据且正在加载
                 ProgressView()
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
-            } else if let error = viewModel.notificationsError {
+            } else if let error = viewModel.notificationsState.error {
                 VStack(spacing: 8) {
                     Image(systemName: "exclamationmark.triangle")
                         .foregroundColor(.red)
@@ -41,7 +41,7 @@ struct NotificationsView: View {
     }
     
     private var notificationsList: some View {
-        List(viewModel.notifications.enumerated().map { $0 }, id: \.element.id) { index, notification in
+        List(viewModel.notificationsState.value.enumerated().map { $0 }, id: \.element.id) { index, notification in
             NotificationRow(notification: notification, index: index + 1)
                 .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
                 .listRowBackground(
@@ -63,7 +63,7 @@ struct NotificationsView: View {
 }
 
 struct NotificationRow: View {
-    let notification: Notification
+    let notification: V2EXNotification
     let index: Int
     @State private var isUsernameHovered = false
     

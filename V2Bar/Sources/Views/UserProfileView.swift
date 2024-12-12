@@ -26,15 +26,15 @@ struct UserProfileView: View {
     
     var body: some View {
         Group {
-            if let profile = viewModel.profile {
+            if let profile = viewModel.profileState.value {
                 // 有缓存数据，直接显示
                 profileContent(profile)
-            } else if viewModel.isProfileLoading {
+            } else if viewModel.profileState.isLoading {
                 // 无缓存数据且正在加载
                 ProgressView()
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
-            } else if let error = viewModel.profileError {
+            } else if let error = viewModel.profileState.error {
                 // 显示错误
                 VStack(spacing: 8) {
                     Image(systemName: "exclamationmark.triangle")

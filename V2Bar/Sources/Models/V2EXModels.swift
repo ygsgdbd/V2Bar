@@ -8,7 +8,7 @@ struct V2EXResponse<T: Codable>: Codable {
 }
 
 // MARK: - 通知模型
-struct Notification: Codable, Identifiable {
+struct V2EXNotification: Codable, Identifiable {
     let id: Int
     let memberId: Int
     let forMemberId: Int
