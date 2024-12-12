@@ -14,6 +14,17 @@ struct CursorModifier: ViewModifier {
     }
 }
 
+struct UsernameStyle: ViewModifier {
+    @Binding var isHovered: Bool
+    
+    func body(content: Content) -> some View {
+        content
+            .fontWeight(.medium)
+            .foregroundColor(.primary)
+            .underline(isHovered)
+    }
+}
+
 extension View {
     func cursor(_ cursor: NSCursor) -> some View {
         modifier(CursorModifier(cursor: cursor))
@@ -21,5 +32,9 @@ extension View {
     
     var pointingCursor: some View {
         cursor(.pointingHand)
+    }
+    
+    func usernameStyle(isHovered: Binding<Bool>) -> some View {
+        modifier(UsernameStyle(isHovered: isHovered))
     }
 } 

@@ -7,7 +7,7 @@ struct ContentView: View {
     @Default(.token) private var token: String?
     
     var body: some View {
-        VStack(spacing: 0) {
+        Group {
             if let _ = token {
                 // 已登录状态显示主界面
                 VStack(spacing: 0) {
@@ -16,7 +16,7 @@ struct ContentView: View {
                     Divider()
                     
                     NotificationsView()
-                        .minHeight(260)
+                        .minHeight(280)
                     
                     Divider()
                     
@@ -41,6 +41,7 @@ struct ContentView: View {
                     .environmentObject(viewModel)
             }
         }
-        .width(380)
+        .width(360)
+        .focusable(false)
     }
 }

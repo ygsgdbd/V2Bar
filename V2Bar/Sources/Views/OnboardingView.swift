@@ -32,6 +32,7 @@ struct OnboardingView: View {
             }
             .buttonStyle(.plain)
         }
+        .padding(.vertical, 32)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
     

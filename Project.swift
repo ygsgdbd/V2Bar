@@ -33,6 +33,8 @@ let project = Project(
                 "LSUIElement": true,
                 "CFBundleDevelopmentRegion": "zh-Hans",
                 "NSHumanReadableCopyright": "Copyright © 2024 ygsgdbd. All rights reserved.",
+                "CFBundleShortVersionString": "1.0.0",
+                "CFBundleVersion": "1",
                 
                 // 网络安全配置 - 允许所有 HTTPS 连接
                 "NSAppTransportSecurity": [

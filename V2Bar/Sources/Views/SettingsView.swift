@@ -61,6 +61,10 @@ struct SettingsView: View {
         
         let input = NSTextField(frame: NSRect(x: 0, y: 0, width: 300, height: 24))
         input.placeholderString = "请输入访问令牌"
+        if let existingToken = Defaults[.token] {
+            input.stringValue = existingToken
+            input.selectText(nil)
+        }
         
         alert.accessoryView = input
         alert.addButton(withTitle: "确定")

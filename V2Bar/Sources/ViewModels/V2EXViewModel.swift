@@ -1,6 +1,7 @@
 import SwiftUI
 import Defaults
 import Combine
+import SwifterSwift
 
 @MainActor
 class V2EXViewModel: ObservableObject {
@@ -65,8 +66,8 @@ class V2EXViewModel: ObservableObject {
     
     /// 保存并验证新的访问令牌
     func saveToken(_ token: String) async throws {
-        let trimmedToken = token.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedToken.isEmpty else { throw TokenError.emptyToken }
+        let trimmedToken = token.trimmed
+        if trimmedToken.isWhitespace { throw TokenError.emptyToken }
         
         do {
             // 先保存 token

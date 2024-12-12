@@ -1,4 +1,5 @@
 import Foundation
+import SwifterSwift
 
 // MARK: - 通用响应结构
 struct V2EXResponse<T: Codable>: Codable {
@@ -73,7 +74,7 @@ struct NotificationMember: Codable {
 }
 
 // MARK: - User Profile
-struct V2EXUserProfile: Codable {
+struct V2EXUserProfile: Codable, Identifiable {
     let id: Int
     let username: String
     let url: String
@@ -92,6 +93,31 @@ struct V2EXUserProfile: Codable {
     let avatarXxlarge: String?
     let created: Int
     let lastModified: Int
+    
+    // URL 计算属性
+    var websiteURL: URL? {
+        if website?.isWhitespace == true {
+            nil
+        } else {
+            website?.url
+        }
+    }
+    
+    var githubURL: URL? {
+        if github?.isWhitespace == true {
+            nil
+        } else {
+            github.map { URL(string: "https://github.com/\($0)") } ?? nil
+        }
+    }
+    
+    var twitterURL: URL? {
+        if twitter?.isWhitespace == true {
+            nil
+        } else {
+            twitter.map { URL(string: "https://twitter.com/\($0)") } ?? nil
+        }
+    }
     
     enum CodingKeys: String, CodingKey {
         case id, username, url, website, twitter, psn, github, btc, location, tagline, bio, created
@@ -113,4 +139,21 @@ struct V2EXTokenInfo: Codable {
     let total_used: Int
     let last_used: Int
     let created: Int
+}
+
+extension V2EXTokenInfo {
+    var formattedExpirationText: String {
+        if expiration <= 0 {
+            return "(已过期)"
+        }
+        
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .full
+        
+        let date = Date(timeIntervalSinceNow: TimeInterval(expiration))
+        let relativeTime = formatter.localizedString(for: date, relativeTo: Date())
+            .replacingOccurrences(of: "后", with: "后过期")
+        
+        return "(\(relativeTime))"
+    }
 } 

@@ -57,7 +57,6 @@ struct NotificationsView: View {
                         NSWorkspace.shared.open(topicLink.url)
                     }
                 }
-                .pointingCursor
         }
         .listStyle(.plain)
     }
@@ -78,9 +77,7 @@ struct NotificationRow: View {
                             .foregroundColor(.secondary.opacity(0.8))
                             .font(.caption2)
                         Text(notification.member.username)
-                            .fontWeight(.medium)
-                            .foregroundColor(.primary)
-                            .underline(isUsernameHovered)
+                            .usernameStyle(isHovered: $isUsernameHovered)
                     }
                 }
                 .buttonStyle(.plain)

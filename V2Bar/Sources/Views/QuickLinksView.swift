@@ -1,4 +1,5 @@
 import SwiftUI
+import SwifterSwift
 
 struct QuickLink: Identifiable {
     let id = UUID()
@@ -8,24 +9,33 @@ struct QuickLink: Identifiable {
 }
 
 struct QuickLinksView: View {
-    private let links = [
-        QuickLink(
-            title: "V2EX 首页",
-            url: URL(string: "https://www.v2ex.com/")!,
-            iconName: "house"
-        )
-    ]
+    private var links: [QuickLink] {
+        [
+            QuickLink(
+                title: "V2EX 首页",
+                url: URL(string: "https://www.v2ex.com/")!,
+                iconName: "house"
+            ),
+            QuickLink(
+                title: "关于 V2Bar",
+                url: URL(string: "https://github.com/ygsgdbd/V2Bar")!,
+                iconName: "info.circle"
+            )
+        ]
+    }
     
     var body: some View {
         VStack(spacing: 0) {
             ForEach(Array(links.enumerated()), id: \.element.id) { index, link in
                 Button {
                     NSWorkspace.shared.open(link.url)
+                    NSApplication.shared.hide(nil)
                 } label: {
                     HStack(spacing: 8) {
                         Image(systemName: link.iconName)
                             .font(.system(size: 12))
                             .foregroundColor(.secondary)
+                            .frame(width: 16, alignment: .center)
                         Text(link.title)
                             .font(.system(size: 12))
                         Spacer()

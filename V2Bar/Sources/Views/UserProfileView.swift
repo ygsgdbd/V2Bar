@@ -21,8 +21,56 @@ struct QuickAction: Identifiable {
     ]
 }
 
+enum SocialLinkType {
+    case website(URL)
+    case github(URL)
+    case twitter(URL)
+    
+    var title: String {
+        switch self {
+        case .website: return "WebSite"
+        case .github: return "Github"
+        case .twitter: return "Twitter"
+        }
+    }
+    
+    var icon: String {
+        switch self {
+        case .website: return "globe"
+        case .github: return "chevron.left.forwardslash.chevron.right"
+        case .twitter: return "bird"
+        }
+    }
+    
+    var url: URL {
+        switch self {
+        case .website(let url): return url
+        case .github(let url): return url
+        case .twitter(let url): return url
+        }
+    }
+}
+
+struct SocialLink: View {
+    let type: SocialLinkType
+    
+    var body: some View {
+        Link(destination: type.url) {
+            HStack(spacing: 2) {
+                Image(systemName: type.icon)
+                Text(type.title)
+            }
+            .font(.caption)
+            .foregroundColor(.secondary)
+            .lineLimit(1)
+        }
+        .buttonStyle(.link)
+    }
+}
+
 struct UserProfileView: View {
     @EnvironmentObject private var viewModel: V2EXViewModel
+    @State private var isUsernameHovered = false
     
     var body: some View {
         Group {
@@ -59,64 +107,60 @@ struct UserProfileView: View {
     private func profileContent(_ profile: V2EXUserProfile) -> some View {
         VStack(spacing: 0) {
             // 用户信息
-            HStack(spacing: 12) {
-                Link(destination: URL(string: profile.url)!) {
-                    AsyncImage(url: profile.avatarLarge?.url) { image in
-                        image
-                            .resizable()
-                            .scaledToFit()
-                    } placeholder: {
-                        Color.gray.opacity(0.2)
-                    }
-                    .frame(width: 40, height: 40)
-                    .clipShape(Circle())
-                }
-                .buttonStyle(.plain)
-                
-                VStack(alignment: .leading, spacing: 4) {
+            VStack(spacing: 8) {
+                // 头像和用户名区域
+                HStack(spacing: 12) {
                     Link(destination: URL(string: profile.url)!) {
-                        Text(profile.username)
-                            .font(.headline)
-                            .foregroundColor(.primary)
+                        AsyncImage(url: profile.avatarLarge?.url) { image in
+                            image
+                                .resizable()
+                                .scaledToFit()
+                        } placeholder: {
+                            Color.gray.opacity(0.2)
+                        }
+                        .frame(width: 40, height: 40)
+                        .clipShape(Circle())
+                        .overlay(Circle().stroke(Color.secondary.opacity(0.1), lineWidth: 1))
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.link)
+                    .focusable(false)
                     
-                    HStack(spacing: 8) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "calendar")
-                                .font(.caption)
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Link(destination: URL(string: profile.url)!) {
+                                Text(profile.username)
+                                    .usernameStyle(isHovered: $isUsernameHovered)
+                            }
+                            .buttonStyle(.link)
+                            .onHover { hovering in
+                                isUsernameHovered = hovering
+                            }
+                            
+                            Spacer()
+                            
                             Text("加入于 \(Date.fromUnixTimestamp(profile.created).formattedString)")
                                 .font(.caption)
-                        }
-                        .foregroundColor(.secondary)
-                        
-                        if let website = profile.website, let websiteUrl = URL(string: website) {
-                            Link(destination: websiteUrl) {
-                                HStack {
-                                    Image(systemName: "globe")
-                                    Text("Website")
-                                }
-                                .font(.caption)
                                 .foregroundColor(.secondary)
-                            }
-                            .pointingCursor
                         }
                         
-                        if let github = profile.github {
-                            Link(destination: URL(string: "https://github.com/\(github)")!) {
-                                HStack {
-                                    Image(systemName: "link")
-                                    Text("GitHub")
-                                }
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                        // 预留底部链接域
+                        HStack(spacing: 8) {
+                            if let websiteURL = profile.websiteURL {
+                                SocialLink(type: .website(websiteURL))
                             }
-                            .pointingCursor
+                            
+                            if let githubURL = profile.githubURL {
+                                SocialLink(type: .github(githubURL))
+                            }
+                            
+                            if let twitterURL = profile.twitterURL {
+                                SocialLink(type: .twitter(twitterURL))
+                            }
                         }
                     }
                 }
                 
-                Spacer()
+                
             }
             .padding(.horizontal)
             .padding(.vertical, 12)
@@ -130,15 +174,16 @@ struct UserProfileView: View {
                         switch action.action {
                         case .url(let urlString):
                             NSWorkspace.shared.open(URL(string: urlString)!)
+                            NSApplication.shared.hide(nil)
                         case .logout:
                             Task { await viewModel.clearToken() }
                         }
                     } label: {
-                        VStack(spacing: 2) {
+                        VStack(spacing: 4) {
                             Image(systemName: action.icon)
                                 .font(.system(size: 14))
                             Text(action.title)
-                                .font(.system(size: 11))
+                                .font(.system(size: 10))
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 8)
