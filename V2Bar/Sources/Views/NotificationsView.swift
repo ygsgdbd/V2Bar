@@ -2,17 +2,15 @@ import SwiftUI
 import SwifterSwift
 
 struct NotificationsView: View {
-    @State private var notifications: [Notification] = []
-    @State private var isLoading = false
-    @State private var error: Error?
+    @EnvironmentObject private var viewModel: NotificationsViewModel
     @State private var hoveredNotificationId: Int?
     
     var body: some View {
         VStack(spacing: 0) {
             VStack {
-                if isLoading {
+                if viewModel.isLoading {
                     ProgressView()
-                } else if let error = error {
+                } else if let error = viewModel.error {
                     VStack {
                         Image(systemName: "exclamationmark.triangle")
                             .foregroundColor(.red)
@@ -20,11 +18,11 @@ struct NotificationsView: View {
                             .foregroundColor(.secondary)
                             .font(.caption)
                     }
-                } else if notifications.isEmpty {
+                } else if viewModel.notifications.isEmpty {
                     Text("暂无通知")
                         .foregroundColor(.secondary)
                 } else {
-                    List(notifications.enumerated().map { $0 }, id: \.element.id) { index, notification in
+                    List(viewModel.notifications.enumerated().map { $0 }, id: \.element.id) { index, notification in
                         NotificationRow(notification: notification, index: index + 1)
                             .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
                             .listRowBackground(
@@ -37,7 +35,6 @@ struct NotificationsView: View {
                             .onTapGesture {
                                 if let topicLink = notification.links.first(where: { $0.url.path.hasPrefix("/t/") }) {
                                     NSWorkspace.shared.open(topicLink.url)
-                                    NSApplication.shared.hide(nil)
                                 }
                             }
                             .pointingCursor
@@ -47,28 +44,7 @@ struct NotificationsView: View {
                 }
             }
             .task {
-                await fetchNotifications()
-            }
-            
-            SettingsView()
-        }
-    }
-    
-    private func fetchNotifications() async {
-        isLoading = true
-        defer { isLoading = false }
-        
-        do {
-            let data = try await V2EXService.shared.fetchNotifications()
-            let response = try JSONDecoder().decode(V2EXResponse<[Notification]>.self, from: data)
-            await MainActor.run {
-                self.notifications = response.result
-                self.error = nil
-            }
-        } catch {
-            await MainActor.run {
-                self.error = error
-                self.notifications = []
+                await viewModel.fetchNotifications()
             }
         }
     }
@@ -84,10 +60,15 @@ struct NotificationRow: View {
             // 通知标题
             HStack(alignment: .center, spacing: 6) {
                 Link(destination: URL(string: "https://v2ex.com/member/\(notification.member.username)")!) {
-                    Text(notification.member.username)
-                        .fontWeight(.medium)
-                        .foregroundColor(.primary)
-                        .underline(isUsernameHovered)
+                    HStack(spacing: 0) {
+                        Image(systemName: "at")
+                            .foregroundColor(.secondary.opacity(0.8))
+                            .font(.caption2)
+                        Text(notification.member.username)
+                            .fontWeight(.medium)
+                            .foregroundColor(.primary)
+                            .underline(isUsernameHovered)
+                    }
                 }
                 .buttonStyle(.plain)
                 .onHover { hovering in

@@ -23,8 +23,13 @@ actor V2EXService {
             eventMonitors: [monitor]
         )
         
-        // 从 Defaults 加载保存的 token
-        self.token = Defaults[.v2exToken]
+        if let savedToken = UserDefaults.standard.string(forKey: "v2ex_token") {
+            self.token = savedToken
+        }
+    }
+    
+    var currentToken: String? {
+        token
     }
     
     // MARK: - Token Management

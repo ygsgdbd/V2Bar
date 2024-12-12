@@ -3,7 +3,7 @@ import Foundation
 // MARK: - 通用响应结构
 struct V2EXResponse<T: Codable>: Codable {
     let success: Bool
-    let message: String
+    let message: String?
     let result: T
 }
 
@@ -42,7 +42,7 @@ struct Notification: Codable, Identifiable {
     var links: [(title: String, url: URL)] {
         var result: [(String, URL)] = []
         
-        // 匹配 HTML 链接的正则表达式
+        // 匹配 HTML 的正则表达式
         let pattern = #"<a href="([^"]+)"[^>]*>([^<]+)</a>"#
         let regex = try? NSRegularExpression(pattern: pattern)
         let nsRange = NSRange(text.startIndex..<text.endIndex, in: text)
@@ -74,39 +74,43 @@ struct NotificationMember: Codable {
 
 // MARK: - User Profile
 struct V2EXUserProfile: Codable {
-    struct Response: Codable {
-        let success: Bool
-        let result: UserInfo
-    }
+    let id: Int
+    let username: String
+    let url: String
+    let website: String?
+    let twitter: String?
+    let psn: String?
+    let github: String?
+    let btc: String?
+    let location: String?
+    let tagline: String?
+    let bio: String?
+    let avatarMini: String?
+    let avatarNormal: String?
+    let avatarLarge: String?
+    let avatarXlarge: String?
+    let avatarXxlarge: String?
+    let created: Int
+    let lastModified: Int
     
-    struct UserInfo: Codable {
-        let id: Int
-        let username: String
-        let url: String
-        let website: String?
-        let twitter: String?
-        let psn: String?
-        let github: String?
-        let btc: String?
-        let location: String?
-        let tagline: String?
-        let bio: String?
-        let avatarMini: String?
-        let avatarNormal: String?
-        let avatarLarge: String?
-        let avatarXlarge: String?
-        let avatarXxlarge: String?
-        let created: Int
-        let lastModified: Int
-        
-        enum CodingKeys: String, CodingKey {
-            case id, username, url, website, twitter, psn, github, btc, location, tagline, bio, created
-            case avatarMini = "avatar_mini"
-            case avatarNormal = "avatar_normal"
-            case avatarLarge = "avatar_large"
-            case avatarXlarge = "avatar_xlarge"
-            case avatarXxlarge = "avatar_xxlarge"
-            case lastModified = "last_modified"
-        }
+    enum CodingKeys: String, CodingKey {
+        case id, username, url, website, twitter, psn, github, btc, location, tagline, bio, created
+        case avatarMini = "avatar_mini"
+        case avatarNormal = "avatar_normal"
+        case avatarLarge = "avatar_large"
+        case avatarXlarge = "avatar_xlarge"
+        case avatarXxlarge = "avatar_xxlarge"
+        case lastModified = "last_modified"
     }
+}
+
+// MARK: - Token Info
+struct V2EXTokenInfo: Codable {
+    let token: String
+    let scope: String
+    let expiration: Int
+    let good_for: Int
+    let total_used: Int
+    let last_used: Int
+    let created: Int
 } 
