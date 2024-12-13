@@ -1,7 +1,7 @@
 # V2Bar
 
 <div align="center">
-    <img src="icon.png" width="160" height="160" alt="V2Bar Icon">
+    <img src="Screenshots/icon.png" width="160" height="160" alt="V2Bar Icon">
 </div>
 
 <div align="center">
@@ -24,7 +24,7 @@ V2Bar 是一个简洁优雅的 macOS 菜单栏应用，为你提供快捷的 V2E
 ## 预览
 
 <div align="center">
-    <img src="preview.png" width="375" alt="V2Bar Preview">
+    <img src="Screenshots/preview.png" width="375" alt="V2Bar Preview">
 </div>
 
 ## 功能特点
