@@ -5,7 +5,20 @@ import SwifterSwift
 struct V2EXResponse<T: Codable>: Codable {
     let success: Bool
     let message: String?
-    let result: T
+    let result: T?
+    
+    // 添加自定义解码逻辑
+    func getResult() throws -> T {
+        guard success else {
+            throw V2EXService.V2EXError.apiError(message ?? "未知错误")
+        }
+        
+        guard let result = result else {
+            throw V2EXService.V2EXError.emptyResult
+        }
+        
+        return result
+    }
 }
 
 // MARK: - 通知模型

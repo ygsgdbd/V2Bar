@@ -33,7 +33,7 @@ class V2EXViewModel: ObservableObject {
                 guard let self = self else { return }
                 Task {
                     if Defaults[.token] != nil {
-                        await self.refreshTokenInfo()
+                        await self.fetchTokenInfo()
                     } else {
                         await self.clearToken()
                     }
@@ -43,8 +43,8 @@ class V2EXViewModel: ObservableObject {
     }
     
     // MARK: - Public Methods
-    /// 刷新令牌信息
-    func refreshTokenInfo() async {
+    /// 获取令牌信息
+    func fetchTokenInfo() async {
         tokenState.load {
             try await V2EXService.shared.request(.token)
         }
@@ -76,8 +76,8 @@ class V2EXViewModel: ObservableObject {
             // 验证 token 是否有效
             _ = try await V2EXService.shared.request(.token) as V2EXTokenInfo
             
-            // token 有效，更新信息
-            await refreshTokenInfo()
+            // token 有效，获取信息
+            await fetchTokenInfo()
         } catch {
             // token 无效，清理状态
             await clearToken()
@@ -96,11 +96,10 @@ class V2EXViewModel: ObservableObject {
     /// 刷新所有数据
     func refreshAll() async {
         await withTaskGroup(of: Void.self) { group in
-            group.addTask { await self.refreshTokenInfo() }
+            group.addTask { await self.fetchTokenInfo() }
             group.addTask { await self.fetchProfile() }
             group.addTask { await self.fetchNotifications() }
             
-            // 等待所有任务完成
             await group.waitForAll()
         }
     }

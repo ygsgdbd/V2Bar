@@ -11,7 +11,6 @@ actor V2EXService {
         let configuration = URLSessionConfiguration.default
         configuration.timeoutIntervalForRequest = 30
         configuration.timeoutIntervalForResource = 300
-        configuration.waitsForConnectivity = true
         
         decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
@@ -25,38 +24,9 @@ actor V2EXService {
                 .validate()
                 .serializingDecodable(V2EXResponse<T>.self, decoder: decoder)
                 .value
-            return response.result
-        } catch let error as DecodingError {
-            // 打印详细的解码错误信息
-            switch error {
-            case .keyNotFound(let key, let context):
-                print("⚠️ 解码错误 - 找不到键: \(key)")
-                print("编码路径: \(context.codingPath)")
-            case .valueNotFound(let type, let context):
-                print("⚠️ 解码错误 - 找不到值，类型: \(type)")
-                print("编码路径: \(context.codingPath)")
-            case .typeMismatch(let type, let context):
-                print("⚠️ 解码错误 - 类型不匹配: \(type)")
-                print("编码路径: \(context.codingPath)")
-            case .dataCorrupted(let context):
-                print("⚠️ 解码错误 - 数据损坏")
-                print("编码路径: \(context.codingPath)")
-                if let underlyingError = context.underlyingError {
-                    print("底层错误: \(underlyingError)")
-                }
-            @unknown default:
-                print("⚠️ 未知解码错误: \(error)")
-            }
-            
-            // 果需要，可以打印原始数据
-            if let data = try? await session.request(router).serializingData().value {
-                print("原始响应数据:")
-                print(String(data: data, encoding: .utf8) ?? "无法解码为字符串")
-            }
-            
-            throw error
+            return try response.getResult()
         } catch {
-            print("⚠️ 网络请求错误: \(error)")
+            debugPrint("⚠️ 网络请求错误:", error)
             throw error
         }
     }
@@ -68,6 +38,8 @@ extension V2EXService {
         case unauthorized
         case invalidResponse
         case serverError(statusCode: Int)
+        case apiError(String)
+        case emptyResult
         
         var errorDescription: String? {
             switch self {
@@ -77,6 +49,10 @@ extension V2EXService {
                 return "无效的响应"
             case .serverError(let statusCode):
                 return "服务器错误（\(statusCode)）"
+            case .apiError(let message):
+                return message
+            case .emptyResult:
+                return "响应数据为空"
             }
         }
     }

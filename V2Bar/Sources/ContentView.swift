@@ -30,7 +30,7 @@ struct ContentView: View {
                     
                     BottomButtonsView()
                 }
-                .environmentObject(viewModel)
+                .focusable(false)
                 .task {
                     // 初始化时加载所有数据
                     await viewModel.refreshAll()
@@ -38,10 +38,9 @@ struct ContentView: View {
             } else {
                 // 未登录状态显示引导页面
                 OnboardingView()
-                    .environmentObject(viewModel)
             }
         }
+        .environmentObject(viewModel)
         .width(360)
-        .focusable(false)
     }
 }

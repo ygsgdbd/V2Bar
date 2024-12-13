@@ -12,8 +12,14 @@ struct SettingsView: View {
                 // 访问令牌
                 GridRow {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Token")
-                            .font(.system(size: 12))
+                        HStack(spacing: 4) {
+                            Image(systemName: "key")
+                                .font(.system(size: 10))
+                                .foregroundColor(.secondary)
+                            Text("Token")
+                                .font(.system(size: 12))
+                        }
+                        
                         HStack(spacing: 8) {
                             Text(viewModel.maskedToken)
                                 .font(.system(size: 12))
@@ -40,8 +46,13 @@ struct SettingsView: View {
                         
                         Button {
                             NSWorkspace.shared.open(URL(string: "https://www.v2ex.com/settings/tokens")!)
+                            NSApplication.shared.hide(nil)
                         } label: {
-                            Text("管理")
+                            HStack(spacing: 2) {
+                                Text("管理")
+                                Image(systemName: "arrow.up.forward")
+                                    .font(.system(size: 10))
+                            }
                         }
                     }
                     .gridCellColumns(1)
