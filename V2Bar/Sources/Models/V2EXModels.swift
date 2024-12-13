@@ -19,17 +19,6 @@ struct V2EXNotification: Codable, Identifiable {
     let created: Int
     let member: NotificationMember
     
-    enum CodingKeys: String, CodingKey {
-        case id
-        case memberId = "member_id"
-        case forMemberId = "for_member_id"
-        case text
-        case payload
-        case payloadRendered = "payload_rendered"
-        case created
-        case member
-    }
-    
     var createdDate: Date {
         Date(timeIntervalSince1970: TimeInterval(created))
     }
@@ -118,16 +107,6 @@ struct V2EXUserProfile: Codable, Identifiable {
             twitter.map { URL(string: "https://twitter.com/\($0)") } ?? nil
         }
     }
-    
-    enum CodingKeys: String, CodingKey {
-        case id, username, url, website, twitter, psn, github, btc, location, tagline, bio, created
-        case avatarMini = "avatar_mini"
-        case avatarNormal = "avatar_normal"
-        case avatarLarge = "avatar_large"
-        case avatarXlarge = "avatar_xlarge"
-        case avatarXxlarge = "avatar_xxlarge"
-        case lastModified = "last_modified"
-    }
 }
 
 // MARK: - Token Info
@@ -135,9 +114,9 @@ struct V2EXTokenInfo: Codable {
     let token: String
     let scope: String
     let expiration: Int
-    let good_for: Int?
-    let total_used: Int
-    let last_used: Int
+    let goodForDays: Int?
+    let totalUsed: Int
+    let lastUsed: Int
     let created: Int
 }
 

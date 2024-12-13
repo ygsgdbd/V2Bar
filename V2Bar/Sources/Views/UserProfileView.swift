@@ -73,29 +73,13 @@ struct UserProfileView: View {
     @State private var isUsernameHovered = false
     
     var body: some View {
-        Group {
-            if let profile = viewModel.profileState.value {
-                // 有缓存数据，直接显示
+        LoadableView(
+            state: viewModel.profileState,
+            emptyText: "暂无数据",
+            isEmpty: { $0 == nil }
+        ) { profile in
+            if let profile = profile {
                 profileContent(profile)
-            } else if viewModel.profileState.isLoading {
-                // 无缓存数据且正在加载
-                ProgressView()
-                    .controlSize(.small)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-            } else if let error = viewModel.profileState.error {
-                // 显示错误
-                VStack(spacing: 8) {
-                    Image(systemName: "exclamationmark.triangle")
-                        .foregroundColor(.red)
-                        .font(.title2)
-                    Text(error.localizedDescription)
-                        .foregroundColor(.secondary)
-                        .font(.caption)
-                        .multilineTextAlignment(.center)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
             }
         }
     }
@@ -108,7 +92,7 @@ struct UserProfileView: View {
                 // 头像和用户名区域
                 HStack(spacing: 12) {
                     Link(destination: URL(string: profile.url)!) {
-                        AsyncImage(url: profile.avatarLarge?.url) { image in
+                        AsyncImage(url: profile.avatarNormal?.url) { image in
                             image
                                 .resizable()
                                 .scaledToFit()

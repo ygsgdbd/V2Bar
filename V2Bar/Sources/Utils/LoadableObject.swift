@@ -12,24 +12,17 @@ class LoadableObject<T>: ObservableObject {
     }
     
     func load(_ operation: @escaping () async throws -> T) {
-        // 如果已经有非默认数据，不设置 isLoading 状态
-        let shouldShowLoading = isLoading == false
-        
-        if shouldShowLoading {
-            isLoading = true
-            error = nil
-        }
+        isLoading = true
+        error = nil
         
         Task {
+            defer { isLoading = false }
+            
             do {
                 value = try await operation()
                 error = nil
             } catch {
                 self.error = error
-            }
-            
-            if shouldShowLoading {
-                isLoading = false
             }
         }
     }

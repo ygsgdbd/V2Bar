@@ -6,46 +6,25 @@ struct NotificationsView: View {
     @State private var hoveredNotificationId: Int?
     
     var body: some View {
-        Group {
-            if !viewModel.notificationsState.value.isEmpty {
-                // 有缓存数据，直接显示列表
-                notificationsList
-            } else if viewModel.notificationsState.isLoading {
-                // 无缓存数据且正在加载
-                ProgressView()
-                    .controlSize(.small)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-            } else if let error = viewModel.notificationsState.error {
-                VStack(spacing: 8) {
-                    Image(systemName: "exclamationmark.triangle")
-                        .foregroundColor(.red)
-                        .font(.title2)
-                    Text(error.localizedDescription)
-                        .foregroundColor(.secondary)
-                        .font(.caption)
-                        .multilineTextAlignment(.center)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
-            } else {
-                // 无缓存数据且加载完成（空列表）
-                Text("暂无通知")
-                    .foregroundColor(.secondary)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-            }
+        LoadableView(
+            state: viewModel.notificationsState,
+            emptyText: "暂无通知",
+            isEmpty: { $0.isEmpty }
+        ) { notifications in
+            notificationsList(notifications)
         }
     }
     
-    private var notificationsList: some View {
-        List(viewModel.notificationsState.value.enumerated().map { $0 }, id: \.element.id) { index, notification in
+    private func notificationsList(_ notifications: [V2EXNotification]) -> some View {
+        List(notifications.enumerated().map { $0 }, id: \.element.id) { index, notification in
             NotificationRow(notification: notification, index: index + 1)
                 .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
                 .listRowBackground(
                     RoundedRectangle(cornerRadius: 0)
                         .fill(hoveredNotificationId == notification.id ? Color.gray.opacity(0.1) : Color.clear)
                 )
+                .listRowSeparator(.visible, edges: .bottom)
+                .listRowSeparatorTint(Color.secondary.opacity(0.1))
                 .onHover { isHovered in
                     hoveredNotificationId = isHovered ? notification.id : nil
                 }
@@ -124,4 +103,4 @@ struct NotificationRow: View {
         }
         .padding(.vertical, 6)
     }
-} 
+}

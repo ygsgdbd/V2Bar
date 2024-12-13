@@ -95,9 +95,14 @@ class V2EXViewModel: ObservableObject {
     
     /// 刷新所有数据
     func refreshAll() async {
-        await refreshTokenInfo()
-        await fetchProfile()
-        await fetchNotifications()
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask { await self.refreshTokenInfo() }
+            group.addTask { await self.fetchProfile() }
+            group.addTask { await self.fetchNotifications() }
+            
+            // 等待所有任务完成
+            await group.waitForAll()
+        }
     }
 }
 
