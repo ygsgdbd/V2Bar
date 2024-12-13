@@ -6,11 +6,6 @@
 
 <div align="center">
 
-[![Release](https://img.shields.io/github/v/release/ysgdbd/V2Bar)](https://github.com/ysgdbd/V2Bar/releases/latest)
-[![Downloads](https://img.shields.io/github/downloads/ysgdbd/V2Bar/total)](https://github.com/ysgdbd/V2Bar/releases)
-[![License](https://img.shields.io/github/license/ysgdbd/V2Bar)](https://github.com/ysgdbd/V2Bar/blob/main/LICENSE)
-[![Issues](https://img.shields.io/github/issues/ysgdbd/V2Bar)](https://github.com/ysgdbd/V2Bar/issues)
-[![Last Commit](https://img.shields.io/github/last-commit/ysgdbd/V2Bar)](https://github.com/ysgdbd/V2Bar/commits/main)
 [![Platform](https://img.shields.io/badge/platform-macOS%2013%2B-brightgreen)](https://github.com/ysgdbd/V2Bar/releases/latest)
 [![Swift](https://img.shields.io/badge/Swift-5.9-orange)](https://github.com/ysgdbd/V2Bar)
 [![Tuist](https://img.shields.io/badge/Powered%20by-Tuist-blue)](https://tuist.io)
