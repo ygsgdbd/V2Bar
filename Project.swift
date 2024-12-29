@@ -1,5 +1,9 @@
 import ProjectDescription
 
+// MARK: - Version
+let appVersion = "0.1.2"  // 应用版本号
+let buildVersion = "@BUILD_NUMBER@"  // 构建版本号占位符，会被 GitHub Actions 替换
+
 // 基础依赖
 let baseDependencies: [TargetDependency] = [
     .package(product: "Alamofire"),
@@ -16,7 +20,9 @@ let developmentDependencies: [TargetDependency] = baseDependencies + [
 let baseSettings = Settings.settings(
     base: [
         "SWIFT_VERSION": "5.9",
-        "DEVELOPMENT_LANGUAGE": "zh-Hans"
+        "DEVELOPMENT_LANGUAGE": "zh-Hans",
+        "MARKETING_VERSION": SettingValue(stringLiteral: appVersion),
+        "CURRENT_PROJECT_VERSION": SettingValue(stringLiteral: buildVersion)
     ],
     configurations: [
         .debug(name: "Debug"),
@@ -28,8 +34,8 @@ let baseInfoPlist: [String: Plist.Value] = [
     "LSUIElement": .boolean(true),
     "CFBundleDevelopmentRegion": .string("zh-Hans"),
     "NSHumanReadableCopyright": .string("Copyright © 2024 ygsgdbd. All rights reserved."),
-    "CFBundleShortVersionString": .string("1.0.0"),
-    "CFBundleVersion": .string("1"),
+    "CFBundleShortVersionString": .string(appVersion),
+    "CFBundleVersion": .string(buildVersion),
     "NSAppTransportSecurity": .dictionary([
         "NSAllowsArbitraryLoads": .boolean(false)
     ]),

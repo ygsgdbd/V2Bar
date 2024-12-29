@@ -28,11 +28,16 @@ jobs:
       - name: Install Tuist
         run: |
           brew install tuist
-       
+      
       - name: Generate Xcode Project
         run: |
+          # 生成基于时间戳的构建号（格式：YYYYMMDDHHmm）
+          BUILD_NUMBER=$(date "+%Y%m%d%H%M")
+          # 替换 Project.swift 中的占位符
+          sed -i '' "s/@BUILD_NUMBER@/$BUILD_NUMBER/g" Project.swift
+          echo "Build number set to: $BUILD_NUMBER"
           tuist generate --no-open
-       
+      
       - name: Build App
         run: |
           xcodebuild \
@@ -42,7 +47,7 @@ jobs:
             -derivedDataPath ./DerivedData \
             -arch arm64 -arch x86_64 \
             clean build CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO
-       
+      
       - name: Create DMG
         run: |
           brew install create-dmg
@@ -53,14 +58,9 @@ jobs:
             --icon "V2Bar.app" 150 150 \
             --app-drop-link 350 150 \
             --no-internet-enable \
-            "V2Bar-${{ github.ref_name }}.dmg" \
+            "V2Bar.dmg" \
             "DerivedData/Build/Products/Release/V2Bar.app"
-       
-      - name: Create Source Archives
-        run: |
-          zip -r "V2Bar-${{ github.ref_name }}-src.zip" . \
-            -x "*.git*" -x "build/*" -x "*.xcodeproj/*" -x "*.xcworkspace/*" -x "*.dmg" -x "DerivedData/*"
-       
+      
       - name: Generate Checksums
         run: |
           echo "### V2Bar ${{ github.ref_name }}" > checksums.txt
@@ -70,16 +70,15 @@ jobs:
           echo "" >> checksums.txt
           echo "### SHA-256 Checksums" >> checksums.txt
           echo "\`\`\`" >> checksums.txt
-          shasum -a 256 "V2Bar-${{ github.ref_name }}.dmg" "V2Bar-${{ github.ref_name }}-src.zip" >> checksums.txt
+          shasum -a 256 V2Bar.dmg >> checksums.txt
           echo "\`\`\`" >> checksums.txt
-       
+      
       - name: Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/v')
         with:
           files: |
-            V2Bar-${{ github.ref_name }}.dmg
-            V2Bar-${{ github.ref_name }}-src.zip
+            V2Bar.dmg
             checksums.txt
           body_path: checksums.txt
           draft: false
