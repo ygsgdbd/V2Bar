@@ -60,7 +60,7 @@ V2Bar 是一个简洁优雅的 macOS 菜单栏应用，为你提供快捷的 V2E
 
 ```bash
 # 添加 V2Bar 的 Homebrew tap 源
-brew tap ysgdbd/tap
+brew tap ygsgdbd/tap
 
 # 安装 V2Bar 应用
 brew install v2bar
