@@ -1,28 +1,38 @@
 import Foundation
-import SwifterSwift
 
-// MARK: - 通用响应结构
-struct V2EXResponse<T: Codable>: Codable {
+enum NotificationKind: Equatable, Sendable {
+    case reply
+    case favorite
+    case thanks
+    case other
+
+    var systemImage: String {
+        switch self {
+        case .reply: "bubble.left"
+        case .favorite: "bookmark"
+        case .thanks: "heart"
+        case .other: "bell"
+        }
+    }
+}
+
+struct V2EXResponse<Value: Codable & Sendable>: Codable, Sendable {
     let success: Bool
     let message: String?
-    let result: T?
-    
-    // 添加自定义解码逻辑
-    func getResult() throws -> T {
+    let result: Value?
+
+    func getResult() throws -> Value {
         guard success else {
-            throw V2EXService.V2EXError.apiError(message ?? "未知错误")
+            throw V2EXClientError.api(message ?? "未知错误")
         }
-        
-        guard let result = result else {
-            throw V2EXService.V2EXError.emptyResult
+        guard let result else {
+            throw V2EXClientError.emptyResult
         }
-        
         return result
     }
 }
 
-// MARK: - 通知模型
-struct V2EXNotification: Codable, Identifiable {
+struct V2EXNotification: Codable, Equatable, Identifiable, Sendable {
     let id: Int
     let memberId: Int
     let forMemberId: Int
@@ -31,52 +41,99 @@ struct V2EXNotification: Codable, Identifiable {
     let payloadRendered: String
     let created: Int
     let member: NotificationMember
-    
+
     var createdDate: Date {
         Date(timeIntervalSince1970: TimeInterval(created))
     }
-    
-    // 移除 HTML 标签的纯文本
+
     var plainText: String {
-        text.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression, range: nil)
+        Self.normalizedText(text, strippingHTML: true)
     }
-    
-    // 提取链接
-    var links: [(title: String, url: URL)] {
-        var result: [(String, URL)] = []
-        
-        // 匹配 HTML 的正则表达式
-        let pattern = #"<a href="([^"]+)"[^>]*>([^<]+)</a>"#
-        let regex = try? NSRegularExpression(pattern: pattern)
-        let nsRange = NSRange(text.startIndex..<text.endIndex, in: text)
-        
-        if let matches = regex?.matches(in: text, range: nsRange) {
-            for match in matches {
-                if match.numberOfRanges == 3,
-                   let pathRange = Range(match.range(at: 1), in: text),
-                   let titleRange = Range(match.range(at: 2), in: text) {
-                    let path = String(text[pathRange])
-                    let title = String(text[titleRange])
-                        .replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
-                    
-                    // 构建完整的 URL
-                    if let url = URL(string: "https://v2ex.com\(path)") {
-                        result.append((title, url))
-                    }
-                }
-            }
+
+    var replyTitle: String {
+        let normalizedPayload = payload.map { Self.normalizedText($0, strippingHTML: false) }
+        if let normalizedPayload, !normalizedPayload.isEmpty {
+            return normalizedPayload
         }
-        
-        return result
+        return plainText
+    }
+
+    var kind: NotificationKind {
+        let actionText = Self.normalizedText(
+            text.replacingOccurrences(
+                of: #"<a\b[^>]*>.*?</a>"#,
+                with: "",
+                options: [.regularExpression, .caseInsensitive]
+            ),
+            strippingHTML: true
+        )
+        let classificationText = actionText.isEmpty ? plainText : actionText
+        if classificationText.contains("收藏") { return .favorite }
+        if classificationText.contains("感谢") { return .thanks }
+        if replyTitle != plainText || classificationText.contains("回复") { return .reply }
+        return .other
+    }
+
+    var topicTitle: String? {
+        links.first { $0.url.path.hasPrefix("/t/") }?.title
+    }
+
+    var menuTitle: String {
+        switch kind {
+        case .reply:
+            replyTitle
+        case .favorite:
+            topicTitle.map { "收藏了：\($0)" } ?? plainText
+        case .thanks:
+            topicTitle.map { "感谢了：\($0)" } ?? plainText
+        case .other:
+            plainText
+        }
+    }
+
+    var links: [(title: String, url: URL)] {
+        let pattern = #"<a href=[\"']([^\"']+)[\"'][^>]*>(.*?)</a>"#
+        guard let expression = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else {
+            return []
+        }
+        let range = NSRange(text.startIndex..<text.endIndex, in: text)
+        return expression.matches(in: text, range: range).compactMap { match in
+            guard match.numberOfRanges == 3,
+                  let hrefRange = Range(match.range(at: 1), in: text),
+                  let titleRange = Range(match.range(at: 2), in: text)
+            else {
+                return nil
+            }
+            let href = String(text[hrefRange])
+            let title = Self.normalizedText(String(text[titleRange]), strippingHTML: true)
+            let url = URL(string: href, relativeTo: URL(string: "https://www.v2ex.com"))?.absoluteURL
+            return url.map { (title, $0) }
+        }
+    }
+
+    var topicURL: URL? {
+        links.first { $0.url.path.hasPrefix("/t/") }?.url
+    }
+
+    private static func normalizedText(_ value: String, strippingHTML: Bool) -> String {
+        var value = value
+        if strippingHTML {
+            value = value.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+        }
+        return value
+            .replacingOccurrences(of: "&amp;", with: "&")
+            .replacingOccurrences(of: "&lt;", with: "<")
+            .replacingOccurrences(of: "&gt;", with: ">")
+            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 
-struct NotificationMember: Codable {
+struct NotificationMember: Codable, Equatable, Sendable {
     let username: String
 }
 
-// MARK: - User Profile
-struct V2EXUserProfile: Codable, Identifiable {
+struct V2EXUserProfile: Codable, Equatable, Identifiable, Sendable {
     let id: Int
     let username: String
     let url: String
@@ -95,35 +152,35 @@ struct V2EXUserProfile: Codable, Identifiable {
     let avatarXxlarge: String?
     let created: Int
     let lastModified: Int
-    
-    // URL 计算属性
-    var websiteURL: URL? {
-        if website?.isWhitespace == true {
-            nil
-        } else {
-            website?.url
+
+    var profileURL: URL? { URL(string: url) }
+    var websiteURL: URL? { normalizedURL(website) }
+    var githubURL: URL? { socialURL(github, baseURL: "https://github.com/") }
+    var twitterURL: URL? { socialURL(twitter, baseURL: "https://twitter.com/") }
+    var avatarURL: URL? { normalizedURL(avatarLarge ?? avatarNormal) }
+
+    private func normalizedURL(_ value: String?) -> URL? {
+        guard let value = value?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else {
+            return nil
         }
+        if value.hasPrefix("//") {
+            return URL(string: "https:\(value)")
+        }
+        if let url = URL(string: value), url.scheme != nil {
+            return url
+        }
+        return URL(string: "https://\(value)")
     }
-    
-    var githubURL: URL? {
-        if github?.isWhitespace == true {
-            nil
-        } else {
-            github.map { URL(string: "https://github.com/\($0)") } ?? nil
+
+    private func socialURL(_ value: String?, baseURL: String) -> URL? {
+        guard let value = value?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else {
+            return nil
         }
-    }
-    
-    var twitterURL: URL? {
-        if twitter?.isWhitespace == true {
-            nil
-        } else {
-            twitter.map { URL(string: "https://twitter.com/\($0)") } ?? nil
-        }
+        return URL(string: baseURL + value)
     }
 }
 
-// MARK: - Token Info
-struct V2EXTokenInfo: Codable {
+struct V2EXTokenInfo: Codable, Equatable, Sendable {
     let token: String
     let scope: String
     let expiration: Int
@@ -131,21 +188,33 @@ struct V2EXTokenInfo: Codable {
     let totalUsed: Int
     let lastUsed: Int
     let created: Int
+
+    var expirationDate: Date? {
+        guard expiration > 0 else { return nil }
+        return Date().addingTimeInterval(TimeInterval(expiration))
+    }
 }
 
-extension V2EXTokenInfo {
-    var formattedExpirationText: String {
-        if expiration <= 0 {
-            return "(已过期)"
+enum V2EXClientError: Error, Equatable, LocalizedError, Sendable {
+    case invalidResponse
+    case unauthorized
+    case server(Int)
+    case api(String)
+    case emptyResult
+    case transport(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .invalidResponse:
+            "无效的响应"
+        case .unauthorized:
+            "未授权，请检查访问令牌"
+        case let .server(statusCode):
+            "服务器错误（\(statusCode)）"
+        case let .api(message), let .transport(message):
+            message
+        case .emptyResult:
+            "响应数据为空"
         }
-        
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .full
-        
-        let date = Date(timeIntervalSinceNow: TimeInterval(expiration))
-        let relativeTime = formatter.localizedString(for: date, relativeTo: Date())
-            .replacingOccurrences(of: "后", with: "后过期")
-        
-        return "(\(relativeTime))"
     }
-} 
+}

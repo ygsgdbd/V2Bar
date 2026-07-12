@@ -6,11 +6,11 @@
 
 <div align="center">
 
-[![Platform](https://img.shields.io/badge/platform-macOS%2013%2B-brightgreen)](https://github.com/ysgdbd/V2Bar/releases/latest)
-[![Swift](https://img.shields.io/badge/Swift-5.9-orange)](https://github.com/ysgdbd/V2Bar)
+[![Platform](https://img.shields.io/badge/platform-macOS%2014%2B-brightgreen)](https://github.com/ygsgdbd/V2Bar/releases/latest)
+[![Swift](https://img.shields.io/badge/Swift-5.9-orange)](https://github.com/ygsgdbd/V2Bar)
 [![Tuist](https://img.shields.io/badge/Powered%20by-Tuist-blue)](https://tuist.io)
-[![Xcode](https://img.shields.io/badge/Xcode-15.0%2B-blue)](https://developer.apple.com/xcode/)
-[![SwiftUI](https://img.shields.io/badge/SwiftUI-4.0-blue)](https://developer.apple.com/xcode/swiftui/)
+[![Xcode](https://img.shields.io/badge/Xcode-26.5%2B-blue)](https://developer.apple.com/xcode/)
+[![SwiftUI](https://img.shields.io/badge/SwiftUI-5.0-blue)](https://developer.apple.com/xcode/swiftui/)
 
 </div>
 
@@ -29,6 +29,8 @@ V2Bar 是一个简洁优雅的 macOS 菜单栏应用，为你提供快捷的 V2E
 - 🌓 完美支持暗黑模式
 - ⚡️ 便捷的菜单栏操作体验
 - 👤 快速查看消息和个人信息
+- 🔄 支持打开菜单时或定时自动刷新
+- 🚀 支持登录时启动与 Sparkle 应用内更新
 - 🔗 一键导航到 V2EX 各版块
 - ✍️ 便捷创建和浏题
 - 🔒 简单可靠的本地数据存储
@@ -42,7 +44,7 @@ V2Bar 是一个简洁优雅的 macOS 菜单栏应用，为你提供快捷的 V2E
 
 ## 系统要求 🖥
 
-- 📱 macOS 13.0 或更高版本
+- 📱 macOS 14.0 或更高版本
 - 💪 完美支持 Apple Silicon 和 Intel 芯片
 
 ## 快速开始 🚀
@@ -65,7 +67,7 @@ brew install ygsgdbd/tap/v2bar
 
 ### 手动安装 📦
 
-1. 🔍 从 [Releases](https://github.com/ysgdbd/V2Bar/releases) 页面下载最新版本的 DMG 文件
+1. 🔍 从 [Releases](https://github.com/ygsgdbd/V2Bar/releases) 页面下载最新版本的 DMG 文件
 2. 💾 打开 DMG 文件并将 V2Bar 拖入 Applications 文件夹
 3. 🚀 从 Applications 文件夹启动 V2Bar
 
@@ -82,7 +84,7 @@ brew install tuist
 
 ```bash
 # 克隆 V2Bar 项目代码
-git clone https://github.com/ysgdbd/V2Bar.git
+git clone https://github.com/ygsgdbd/V2Bar.git
 
 # 进入项目目录
 cd V2Bar
@@ -96,26 +98,25 @@ tuist generate
 ```
 V2Bar/
 ├── Sources/
-│   ├── Network/      # 网络请求相关
+│   ├── App/          # App 启动与 README demo
+│   ├── Clients/      # 网络与系统依赖
+│   ├── Features/     # TCA Reducer
 │   ├── Models/       # 数据模型
-│   ├── Views/        # UI 视图
-│   ├── ViewModels/   # 视图模型
-│   └── Utils/        # 工具类
+│   ├── Network/      # V2EX 请求实现
+│   └── Views/        # 原生菜单视图
 ```
 
 ### 技术栈 🛠
 
-- 🎯 [SwiftUI 4.0](https://developer.apple.com/xcode/swiftui/)
+- 🎯 [SwiftUI](https://developer.apple.com/xcode/swiftui/)
+- 🧭 [The Composable Architecture](https://github.com/pointfreeco/swift-composable-architecture)
 - 🌐 [Alamofire](https://github.com/Alamofire/Alamofire)
+- ✨ [Sparkle](https://github.com/sparkle-project/Sparkle)
 - 📦 [Tuist](https://tuist.io)
-- 🔄 [Combine](https://developer.apple.com/documentation/combine)
-- 🛠 [SwiftUIX](https://github.com/SwiftUIX/SwiftUIX)
-- ⚡️ [SwifterSwift](https://github.com/SwifterSwift/SwifterSwift)
-- 💾 [Defaults](https://github.com/sindresorhus/Defaults)
 
 ## 问题反馈 💭
 
-如果你发现了 bug 或有新功能建议，欢迎提交 [Issue](https://github.com/ysgdbd/V2Bar/issues) 进行反馈。我们会认真对待每一条反馈意见！ 🙏
+如果你发现了 bug 或有新功能建议，欢迎提交 [Issue](https://github.com/ygsgdbd/V2Bar/issues) 进行反馈。我们会认真对待每一条反馈意见！ 🙏
 
 ## 开源协议 📄
 

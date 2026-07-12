@@ -1,59 +1,41 @@
-import Foundation
 import Alamofire
-import Defaults
+import Foundation
 
 actor V2EXService {
-    static let shared = V2EXService()
-    private let session: Session
     private let decoder: JSONDecoder
-    
-    private init() {
+    private let session: Session
+
+    init() {
         let configuration = URLSessionConfiguration.default
         configuration.timeoutIntervalForRequest = 30
         configuration.timeoutIntervalForResource = 300
-        
+        session = Session(configuration: configuration)
         decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
-        
-        session = Session(configuration: configuration)
     }
-    
-    func request<T: Codable>(_ router: V2EXRouter) async throws -> T {
+
+    func request<Value: Codable & Sendable>(
+        _ router: V2EXRouter,
+        as type: Value.Type = Value.self
+    ) async throws -> Value {
         do {
             let response = try await session.request(router)
                 .validate()
-                .serializingDecodable(V2EXResponse<T>.self, decoder: decoder)
+                .serializingDecodable(V2EXResponse<Value>.self, decoder: decoder)
                 .value
             return try response.getResult()
-        } catch {
-            debugPrint("⚠️ 网络请求错误:", error)
+        } catch let error as V2EXClientError {
             throw error
+        } catch let error as AFError {
+            if error.responseCode == 401 {
+                throw V2EXClientError.unauthorized
+            }
+            if let statusCode = error.responseCode, statusCode >= 500 {
+                throw V2EXClientError.server(statusCode)
+            }
+            throw V2EXClientError.transport(error.localizedDescription)
+        } catch {
+            throw V2EXClientError.transport(error.localizedDescription)
         }
     }
 }
-
-// MARK: - Error Types
-extension V2EXService {
-    enum V2EXError: LocalizedError {
-        case unauthorized
-        case invalidResponse
-        case serverError(statusCode: Int)
-        case apiError(String)
-        case emptyResult
-        
-        var errorDescription: String? {
-            switch self {
-            case .unauthorized:
-                return "未授权，请检查访问令牌"
-            case .invalidResponse:
-                return "无效的响应"
-            case .serverError(let statusCode):
-                return "服务器错误（\(statusCode)）"
-            case .apiError(let message):
-                return message
-            case .emptyResult:
-                return "响应数据为空"
-            }
-        }
-    }
-} 
