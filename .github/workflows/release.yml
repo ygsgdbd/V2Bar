@@ -7,37 +7,76 @@ on:
 
 permissions:
   contents: write
-  discussions: write
 
 jobs:
   build:
     name: Build and Release
-    runs-on: macos-14
-    
+    runs-on: macos-26
+    env:
+      SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
+
+      - name: Validate release tag
+        id: release
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]]; then
+            echo "Invalid release tag: $RELEASE_TAG" >&2
+            exit 1
+          fi
+          echo "version=${RELEASE_TAG#v}" >> "$GITHUB_OUTPUT"
+          if [[ "$RELEASE_TAG" == *-* ]]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Validate release secrets
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          IS_PRERELEASE: ${{ steps.release.outputs.prerelease }}
+        run: |
+          test -n "$SPARKLE_ED_PRIVATE_KEY" || { echo "SPARKLE_ED_PRIVATE_KEY is required" >&2; exit 1; }
+          if [[ "$IS_PRERELEASE" != "true" ]]; then
+            test -n "$HOMEBREW_TAP_TOKEN" || { echo "HOMEBREW_TAP_TOKEN is required" >&2; exit 1; }
+          fi
+
       - name: Setup Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: '16.1'
-      
+          xcode-version: '26.5'
+
       - name: Install Tuist
-        run: |
-          brew install tuist
-      
+        run: brew install tuist
+
       - name: Generate Xcode Project
+        env:
+          TUIST_APP_VERSION: ${{ steps.release.outputs.version }}
         run: |
-          # 生成基于时间戳的构建号（格式：YYYYMMDDHHmm）
-          BUILD_NUMBER=$(date "+%Y%m%d%H%M")
-          # 替换 Project.swift 中的占位符
-          sed -i '' "s/@BUILD_NUMBER@/$BUILD_NUMBER/g" Project.swift
-          echo "Build number set to: $BUILD_NUMBER"
+          TUIST_BUILD_VERSION=$(date "+%Y%m%d%H%M")
+          export TUIST_BUILD_VERSION
+          echo "App version set to: $TUIST_APP_VERSION"
+          echo "Build number set to: $TUIST_BUILD_VERSION"
           tuist generate --no-open
-      
+
+      - name: Run tests
+        run: |
+          xcodebuild test \
+            -workspace V2Bar.xcworkspace \
+            -scheme V2Bar \
+            -destination "platform=macOS" \
+            -skipPackagePluginValidation \
+            -skipMacroValidation \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO
+
       - name: Build App
         run: |
           xcodebuild \
@@ -47,7 +86,15 @@ jobs:
             -derivedDataPath ./DerivedData \
             -arch arm64 -arch x86_64 \
             clean build CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO
-      
+
+      - name: Verify universal binary
+        run: |
+          APP_BINARY="DerivedData/Build/Products/Release/V2Bar.app/Contents/MacOS/V2Bar"
+          ARCHS=$(lipo -archs "$APP_BINARY")
+          echo "Architectures: $ARCHS"
+          [[ " $ARCHS " == *" arm64 "* ]] || { echo "arm64 slice is missing" >&2; exit 1; }
+          [[ " $ARCHS " == *" x86_64 "* ]] || { echo "x86_64 slice is missing" >&2; exit 1; }
+
       - name: Create DMG
         run: |
           brew install create-dmg
@@ -60,29 +107,84 @@ jobs:
             --no-internet-enable \
             "V2Bar.dmg" \
             "DerivedData/Build/Products/Release/V2Bar.app"
-      
+
+      - name: Generate Sparkle appcast
+        run: |
+          curl -fL \
+            "https://github.com/sparkle-project/Sparkle/releases/download/2.9.4/Sparkle-2.9.4.tar.xz" \
+            -o Sparkle-2.9.4.tar.xz
+          echo "ce89daf967db1e1893ed3ebd67575ed82d3902563e3191ca92aaec9164fbdef9  Sparkle-2.9.4.tar.xz" \
+            | shasum -a 256 --check
+          mkdir -p Sparkle release-assets
+          tar -xf Sparkle-2.9.4.tar.xz -C Sparkle
+          cp V2Bar.dmg release-assets/
+          printf '%s' "$SPARKLE_ED_PRIVATE_KEY" | \
+            Sparkle/bin/generate_appcast \
+              --ed-key-file - \
+              --download-url-prefix "https://github.com/ygsgdbd/V2Bar/releases/download/${{ github.ref_name }}/" \
+              release-assets
+          cp release-assets/appcast.xml appcast.xml
+          test -s appcast.xml
+
       - name: Generate Checksums
         run: |
           echo "### V2Bar ${{ github.ref_name }}" > checksums.txt
           echo "" >> checksums.txt
           echo "- Universal Binary (Apple Silicon + Intel)" >> checksums.txt
-          echo "- macOS 13.0+" >> checksums.txt
+          echo "- macOS 14.0+" >> checksums.txt
           echo "" >> checksums.txt
           echo "### SHA-256 Checksums" >> checksums.txt
           echo "\`\`\`" >> checksums.txt
           shasum -a 256 V2Bar.dmg >> checksums.txt
+          shasum -a 256 appcast.xml >> checksums.txt
           echo "\`\`\`" >> checksums.txt
-      
+
       - name: Release
-        uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
         with:
           files: |
             V2Bar.dmg
+            appcast.xml
             checksums.txt
           body_path: checksums.txt
           draft: false
-          prerelease: ${{ contains(github.ref, '-beta') || contains(github.ref, '-alpha') }}
+          prerelease: ${{ steps.release.outputs.prerelease == 'true' }}
           generate_release_notes: true
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Checkout Homebrew tap
+        if: steps.release.outputs.prerelease != 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: ygsgdbd/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: homebrew-tap
+
+      - name: Update Homebrew Cask
+        if: steps.release.outputs.prerelease != 'true'
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          SHA256=$(shasum -a 256 V2Bar.dmg | awk '{print $1}')
+          CASK_PATH="homebrew-tap/Casks/v2bar.rb"
+          test -f "$CASK_PATH"
+
+          ruby - "$CASK_PATH" "$VERSION" "$SHA256" <<'RUBY'
+          path, version, sha256 = ARGV
+          content = File.read(path)
+          abort "version field not found" unless content.sub!(/^  version ".*"$/, "  version \"#{version}\"")
+          abort "sha256 field not found" unless content.sub!(/^  sha256 ".*"$/, "  sha256 \"#{sha256}\"")
+          abort "depends_on macos field not found" unless content.sub!(/^  depends_on macos:.*$/, "  depends_on macos: :sonoma")
+          File.write(path, content)
+          RUBY
+
+          cd homebrew-tap
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Casks/v2bar.rb
+          if git diff --cached --quiet; then
+            echo "Homebrew Cask is already up to date."
+            exit 0
+          fi
+          git commit -m "chore: update V2Bar Cask to ${VERSION}"
+          git push

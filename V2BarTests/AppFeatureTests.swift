@@ -1,0 +1,387 @@
+import ComposableArchitecture
+import Clocks
+import XCTest
+
+@testable import V2Bar
+
+@MainActor
+final class AppFeatureTests: XCTestCase {
+    func testTaskWithoutTokenOnlyLoadsLaunchAtLoginStatus() async {
+        let store = TestStore(initialState: AppFeature.State(token: "")) {
+            AppFeature()
+        } withDependencies: {
+            $0.launchAtLoginClient.status = { .requiresApproval }
+            $0.v2exClient.fetchTokenInfo = { _ in XCTFail("Unexpected request"); throw V2EXClientError.invalidResponse }
+            $0.v2exClient.fetchProfile = { _ in XCTFail("Unexpected request"); throw V2EXClientError.invalidResponse }
+            $0.v2exClient.fetchNotifications = { _ in XCTFail("Unexpected request"); throw V2EXClientError.invalidResponse }
+        }
+
+        await store.send(.task)
+        await store.receive(.launchAtLoginResponse(.requiresApproval)) {
+            $0.launchAtLoginStatus = .requiresApproval
+        }
+    }
+
+    func testReadmeDemoIgnoresRefreshAndTokenActions() async {
+        let store = TestStore(
+            initialState: AppFeature.State(token: "demo-token", isReadmeDemo: true)
+        ) {
+            AppFeature()
+        } withDependencies: {
+            $0.tokenPromptClient.prompt = { _ in
+                XCTFail("README demo must not prompt for a token")
+                return nil
+            }
+            $0.v2exClient.validateToken = { _ in
+                XCTFail("README demo must not validate tokens")
+                throw V2EXClientError.invalidResponse
+            }
+            $0.v2exClient.fetchTokenInfo = { _ in
+                XCTFail("README demo must not refresh")
+                throw V2EXClientError.invalidResponse
+            }
+        }
+
+        await store.send(.refreshTapped)
+        await store.send(.autoRefreshModeTapped(.fiveMinutes))
+        await store.send(.tokenEditTapped)
+        await store.send(.tokenPromptResponse("new-token"))
+    }
+
+    func testReadmeDemoIgnoresSystemMutationActions() async {
+        let store = TestStore(
+            initialState: AppFeature.State(token: "demo-token", isReadmeDemo: true)
+        ) {
+            AppFeature()
+        } withDependencies: {
+            $0.launchAtLoginClient.setEnabled = { _ in
+                XCTFail("README demo must not change launch at login")
+            }
+            $0.updaterClient.checkForUpdates = {
+                XCTFail("README demo must not start the updater")
+            }
+        }
+
+        await store.send(.launchAtLoginTapped(true))
+        await store.send(.checkForUpdatesTapped)
+    }
+
+    func testLaunchAtLoginIgnoresChangesWhileSetting() async {
+        let calls = LaunchAtLoginCallRecorder()
+        let gate = AsyncStream<Void>.makeStream()
+        let store = TestStore(initialState: AppFeature.State(token: "token")) {
+            AppFeature()
+        } withDependencies: {
+            $0.launchAtLoginClient.setEnabled = { enabled in
+                await calls.append(enabled)
+                if !enabled {
+                    for await _ in gate.stream { break }
+                }
+            }
+            $0.launchAtLoginClient.status = { .disabled }
+        }
+        await store.send(.launchAtLoginTapped(false)) {
+            $0.isSettingLaunchAtLogin = true
+        }
+        for _ in 0..<100 where await calls.values.count < 1 {
+            await Task.yield()
+        }
+        await store.send(.launchAtLoginTapped(true))
+        for _ in 0..<100 where await calls.values.count < 2 {
+            await Task.yield()
+        }
+
+        let recordedValues = await calls.values
+        XCTAssertEqual(recordedValues, [false])
+        gate.continuation.yield()
+        await store.receive(.launchAtLoginSetFinished(.disabled, nil)) {
+            $0.isSettingLaunchAtLogin = false
+        }
+    }
+
+    func testMenuOpenRefreshDefersResultsUntilMenuCloses() async {
+        let profile = V2EXUserProfile.fixture(username: "yangguan")
+        let store = TestStore(
+            initialState: AppFeature.State(token: "token", autoRefreshMode: .onMenuOpen)
+        ) {
+            AppFeature()
+        } withDependencies: {
+            $0.date.now = Date(timeIntervalSince1970: 1_000)
+            $0.v2exClient.fetchTokenInfo = { _ in .fixture }
+            $0.v2exClient.fetchProfile = { _ in profile }
+            $0.v2exClient.fetchNotifications = { _ in [] }
+        }
+
+        await store.send(.menuPresented) {
+            $0.isMenuOpenRefreshInFlight = true
+            $0.isMenuPresented = true
+        }
+        XCTAssertFalse(store.state.isRefreshing)
+        let refresh = RefreshResult(
+            tokenInfo: .success(.fixture),
+            profile: .success(profile),
+            notifications: .success([]),
+            avatarData: .success(nil)
+        )
+        await store.receive(.refreshResponse(refresh)) {
+            $0.deferredRefresh = refresh
+            $0.isMenuOpenRefreshInFlight = false
+        }
+
+        await store.send(.menuDismissed) {
+            $0.isMenuPresented = false
+            $0.tokenInfo = .fixture
+            $0.profile = profile
+            $0.notifications = []
+            $0.deferredRefresh = nil
+            $0.lastUpdated = Date(timeIntervalSince1970: 1_000)
+        }
+    }
+
+    func testMenuRefreshDoesNotOverwriteDeferredResult() async {
+        let deferred = RefreshResult(
+            tokenInfo: .success(.fixture),
+            profile: .success(.fixture(username: "first-user")),
+            notifications: .success([]),
+            avatarData: .success(nil)
+        )
+        var state = AppFeature.State(token: "token", autoRefreshMode: .off)
+        state.isMenuPresented = true
+        state.deferredRefresh = deferred
+        let store = TestStore(initialState: state) {
+            AppFeature()
+        } withDependencies: {
+            $0.v2exClient.fetchTokenInfo = { _ in
+                XCTFail("Unexpected second refresh")
+                throw V2EXClientError.invalidResponse
+            }
+        }
+
+        await store.send(.refreshTapped)
+        XCTAssertEqual(store.state.deferredRefresh, deferred)
+        await store.send(.autoRefreshModeTapped(.onMenuOpen)) {
+            $0.$autoRefreshMode.withLock { $0 = .onMenuOpen }
+        }
+        XCTAssertEqual(store.state.deferredRefresh, deferred)
+    }
+
+    func testInvalidCandidateTokenDoesNotReplaceExistingToken() async {
+        let store = TestStore(initialState: AppFeature.State(token: "old-token")) {
+            AppFeature()
+        } withDependencies: {
+            $0.date.now = Date(timeIntervalSince1970: 1_000)
+            $0.v2exClient.validateToken = { _ in throw V2EXClientError.unauthorized }
+            $0.tokenPromptClient.showError = { _ in }
+        }
+
+        await store.send(.tokenPromptResponse("new-token")) {
+            $0.isValidatingToken = true
+            $0.errorMessage = nil
+        }
+        await store.receive(.tokenValidationResponse("new-token", .failure(.unauthorized))) {
+            $0.isValidatingToken = false
+            $0.errorMessage = V2EXClientError.unauthorized.localizedDescription
+        }
+        XCTAssertEqual(store.state.token, "old-token")
+    }
+
+    func testLogoutClearsAccountData() async {
+        var state = AppFeature.State(token: "token")
+        state.tokenInfo = .fixture
+        state.profile = .fixture(username: "yangguan")
+        state.notifications = [.fixture]
+
+        let store = TestStore(initialState: state) {
+            AppFeature()
+        }
+
+        await store.send(.logoutTapped) {
+            $0.$token.withLock { $0 = "" }
+            $0.tokenInfo = nil
+            $0.profile = nil
+            $0.notifications = []
+            $0.avatarData = nil
+            $0.errorMessage = nil
+            $0.inFlightRefreshes = []
+            $0.deferredRefresh = nil
+        }
+    }
+
+    func testPartialRefreshPreservesPreviousProfile() async {
+        let oldProfile = V2EXUserProfile.fixture(username: "old-user")
+        var state = AppFeature.State(token: "token")
+        state.profile = oldProfile
+        state.inFlightRefreshes = Set(RefreshDomain.allCases)
+        let now = Date(timeIntervalSince1970: 2_000)
+        let refresh = RefreshResult(
+            tokenInfo: .success(.fixture),
+            profile: .failure(.transport("offline")),
+            notifications: .success([.fixture])
+        )
+        let store = TestStore(initialState: state) {
+            AppFeature()
+        } withDependencies: {
+            $0.date.now = now
+        }
+
+        await store.send(.refreshResponse(refresh)) {
+            $0.inFlightRefreshes = []
+            $0.tokenInfo = .fixture
+            $0.notifications = [.fixture]
+            $0.errorMessage = "offline"
+            $0.lastUpdated = now
+        }
+        XCTAssertEqual(store.state.profile, oldProfile)
+    }
+
+    func testFailedRefreshPreservesLastUpdated() async {
+        let previousUpdate = Date(timeIntervalSince1970: 1_000)
+        var state = AppFeature.State(token: "token")
+        state.lastUpdated = previousUpdate
+        state.inFlightRefreshes = Set(RefreshDomain.allCases)
+        let failure = Result<V2EXTokenInfo, V2EXClientError>.failure(.transport("offline"))
+        let refresh = RefreshResult(
+            tokenInfo: failure,
+            profile: .failure(.transport("offline")),
+            notifications: .failure(.transport("offline"))
+        )
+        let store = TestStore(initialState: state) {
+            AppFeature()
+        } withDependencies: {
+            $0.date.now = Date(timeIntervalSince1970: 2_000)
+        }
+
+        await store.send(.refreshResponse(refresh)) {
+            $0.inFlightRefreshes = []
+            $0.errorMessage = "offline"
+        }
+        XCTAssertEqual(store.state.lastUpdated, previousUpdate)
+    }
+
+    func testAutoRefreshCanBeTurnedOff() async {
+        let store = TestStore(initialState: AppFeature.State(token: "token")) {
+            AppFeature()
+        }
+
+        await store.send(.autoRefreshModeTapped(.off)) {
+            $0.$autoRefreshMode.withLock { $0 = .off }
+        }
+    }
+
+    func testAutoRefreshWithoutTokenDoesNotStartTimer() async {
+        let clock = TestClock()
+        let store = TestStore(initialState: AppFeature.State(token: "")) {
+            AppFeature()
+        } withDependencies: {
+            $0.continuousClock = clock
+        }
+
+        await store.send(.autoRefreshModeTapped(.fiveMinutes)) {
+            $0.$autoRefreshMode.withLock { $0 = .fiveMinutes }
+        }
+        await clock.advance(by: .seconds(300))
+    }
+
+    func testAppStorageLoadsLegacyTokenAndRefreshMode() {
+        let defaults = UserDefaults(suiteName: #function)!
+        defaults.removePersistentDomain(forName: #function)
+        defaults.set("legacy-token", forKey: "token")
+        defaults.set(AutoRefreshMode.fifteenMinutes.rawValue, forKey: "autoRefreshMode")
+
+        withDependencies {
+            $0.defaultAppStorage = defaults
+        } operation: {
+            let state = AppFeature.State()
+            XCTAssertEqual(state.token, "legacy-token")
+            XCTAssertEqual(state.autoRefreshMode, .fifteenMinutes)
+        }
+    }
+
+    func testRecentNotificationsRemainChronologicalAndLimitedToTen() {
+        var state = AppFeature.State(token: "token")
+        state.notifications = (0..<12).map { index in
+            V2EXNotification(
+                id: index,
+                memberId: index,
+                forMemberId: 1,
+                text: "通知 \(index)",
+                payload: nil,
+                payloadRendered: "",
+                created: index,
+                member: .init(username: "member\(index)")
+            )
+        }
+
+        XCTAssertEqual(state.recentNotifications.map(\.id), Array((2..<12).reversed()))
+    }
+
+    func testAccountRefreshStatus() {
+        var state = AppFeature.State(token: "token")
+        XCTAssertEqual(state.accountRefreshStatus, .notUpdated)
+
+        let date = Date(timeIntervalSince1970: 1_000)
+        state.lastUpdated = date
+        XCTAssertEqual(state.accountRefreshStatus, .updated(date))
+
+        state.inFlightRefreshes = [.profile]
+        XCTAssertEqual(state.accountRefreshStatus, .refreshing)
+    }
+}
+
+private extension V2EXTokenInfo {
+    static let fixture = Self(
+        token: "token",
+        scope: "everything",
+        expiration: 86_400,
+        goodForDays: 1,
+        totalUsed: 1,
+        lastUsed: 1,
+        created: 1
+    )
+}
+
+private actor LaunchAtLoginCallRecorder {
+    private(set) var values: [Bool] = []
+
+    func append(_ value: Bool) {
+        values.append(value)
+    }
+}
+
+private extension V2EXUserProfile {
+    static func fixture(username: String) -> Self {
+        Self(
+            id: 1,
+            username: username,
+            url: "https://www.v2ex.com/member/\(username)",
+            website: nil,
+            twitter: nil,
+            psn: nil,
+            github: nil,
+            btc: nil,
+            location: nil,
+            tagline: nil,
+            bio: nil,
+            avatarMini: nil,
+            avatarNormal: nil,
+            avatarLarge: nil,
+            avatarXlarge: nil,
+            avatarXxlarge: nil,
+            created: 1,
+            lastModified: 1
+        )
+    }
+}
+
+private extension V2EXNotification {
+    static let fixture = Self(
+        id: 1,
+        memberId: 1,
+        forMemberId: 2,
+        text: "回复了主题",
+        payload: "回复内容",
+        payloadRendered: "回复内容",
+        created: 1,
+        member: .init(username: "member")
+    )
+}

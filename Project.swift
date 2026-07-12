@@ -1,15 +1,22 @@
+import Foundation
 import ProjectDescription
 
 // MARK: - Version
-let appVersion = "0.1.1"  // 应用版本号
-let buildVersion = "@BUILD_NUMBER@"  // 构建版本号占位符，会被 GitHub Actions 替换
+let appVersion = Environment.appVersion.getString(default: "0.1.1")
+let buildVersion = Environment.buildVersion.getString(default: "0")
+let sparklePublicKey = ProcessInfo.processInfo.environment["TUIST_SPARKLE_PUBLIC_KEY"]
+    ?? "iQt5X/HXFWmvB7pKxm7mxHZPXh2FG9UA8fFPmAKcE8I="
 
 // 基础依赖
 let baseDependencies: [TargetDependency] = [
     .package(product: "Alamofire"),
-    .package(product: "SwiftUIX"),
-    .package(product: "SwifterSwift"),
-    .package(product: "Defaults")
+    .package(product: "CasePaths"),
+    .package(product: "Clocks"),
+    .package(product: "ComposableArchitecture"),
+    .package(product: "Dependencies"),
+    .package(product: "PerceptionCore"),
+    .package(product: "Sharing"),
+    .package(product: "Sparkle")
 ]
 
 // 开发环境依赖
@@ -32,14 +39,25 @@ let baseSettings = Settings.settings(
 
 let baseInfoPlist: [String: Plist.Value] = [
     "LSUIElement": .boolean(true),
+    "CFBundleExecutable": .string("$(EXECUTABLE_NAME)"),
     "CFBundleDevelopmentRegion": .string("zh-Hans"),
+    "CFBundleIdentifier": .string("$(PRODUCT_BUNDLE_IDENTIFIER)"),
+    "CFBundleInfoDictionaryVersion": .string("6.0"),
+    "CFBundleName": .string("$(PRODUCT_NAME)"),
+    "CFBundlePackageType": .string("APPL"),
+    "LSApplicationCategoryType": .string("public.app-category.utilities"),
+    "LSMinimumSystemVersion": .string("14.0"),
+    "NSPrincipalClass": .string("NSApplication"),
     "NSHumanReadableCopyright": .string("Copyright © 2024 ygsgdbd. All rights reserved."),
     "CFBundleShortVersionString": .string(appVersion),
     "CFBundleVersion": .string(buildVersion),
     "NSAppTransportSecurity": .dictionary([
         "NSAllowsArbitraryLoads": .boolean(false)
     ]),
-    "NSNetworkingUsageDescription": .string("V2Bar 需要访问网络以获取内容")
+    "NSNetworkingUsageDescription": .string("V2Bar 需要访问网络以获取内容"),
+    "SUFeedURL": .string("https://github.com/ygsgdbd/V2Bar/releases/latest/download/appcast.xml"),
+    "SUEnableAutomaticChecks": .boolean(false),
+    "SUPublicEDKey": .string(sparklePublicKey)
 ]
 
 // 开发环境额外的 Info.plist 配置
@@ -57,11 +75,15 @@ let project = Project(
         developmentRegion: "zh-Hans"
     ),
     packages: [
-        .remote(url: "https://github.com/Alamofire/Alamofire", requirement: .upToNextMajor(from: "5.10.2")),
-        .remote(url: "https://github.com/SwiftUIX/SwiftUIX", requirement: .upToNextMajor(from: "0.2.3")),
-        .remote(url: "https://github.com/SwifterSwift/SwifterSwift", requirement: .upToNextMajor(from: "7.0.0")),
-        .remote(url: "https://github.com/sindresorhus/Defaults", requirement: .upToNextMajor(from: "9.0.0")),
-        .remote(url: "https://github.com/ProxymanApp/atlantis", requirement: .upToNextMajor(from: "1.26.0"))
+        .remote(url: "https://github.com/Alamofire/Alamofire", requirement: .exact("5.10.2")),
+        .remote(url: "https://github.com/pointfreeco/swift-case-paths", requirement: .upToNextMajor(from: "1.7.3")),
+        .remote(url: "https://github.com/pointfreeco/swift-composable-architecture", requirement: .exact("1.25.5")),
+        .remote(url: "https://github.com/pointfreeco/swift-dependencies", requirement: .upToNextMajor(from: "1.12.0")),
+        .remote(url: "https://github.com/pointfreeco/swift-perception", requirement: .upToNextMajor(from: "2.0.10")),
+        .remote(url: "https://github.com/pointfreeco/swift-sharing", requirement: .upToNextMajor(from: "2.0.0")),
+        .remote(url: "https://github.com/pointfreeco/swift-clocks", requirement: .exact("1.1.0")),
+        .remote(url: "https://github.com/sparkle-project/Sparkle", requirement: .exact("2.9.4")),
+        .remote(url: "https://github.com/ProxymanApp/atlantis", requirement: .exact("1.26.0"))
     ],
     settings: baseSettings,
     targets: [
@@ -71,8 +93,8 @@ let project = Project(
             destinations: .macOS,
             product: .app,
             bundleId: "top.ygsgdbd.V2Bar",
-            deploymentTargets: .macOS("13.0"),
-            infoPlist: .extendingDefault(with: baseInfoPlist),
+            deploymentTargets: .macOS("14.0"),
+            infoPlist: .dictionary(baseInfoPlist),
             sources: ["V2Bar/Sources/**"],
             resources: ["V2Bar/Resources/**"],
             dependencies: baseDependencies,
@@ -84,8 +106,8 @@ let project = Project(
             destinations: .macOS,
             product: .app,
             bundleId: "top.ygsgdbd.V2Bar.dev",
-            deploymentTargets: .macOS("13.0"),
-            infoPlist: .extendingDefault(with: developmentInfoPlist),
+            deploymentTargets: .macOS("14.0"),
+            infoPlist: .dictionary(developmentInfoPlist),
             sources: ["V2Bar/Sources/**"],
             resources: ["V2Bar/Resources/**"],
             dependencies: developmentDependencies,
@@ -93,7 +115,7 @@ let project = Project(
                 base: [
                     "SWIFT_VERSION": "5.9",
                     "DEVELOPMENT_LANGUAGE": "zh-Hans",
-                    "OTHER_SWIFT_FLAGS": "-D DEBUG",
+                    "OTHER_SWIFT_FLAGS": "$(inherited) -D V2BAR_DEV",
                     "OTHER_LDFLAGS": "$(inherited) -ObjC"
                 ],
                 configurations: [
@@ -101,6 +123,40 @@ let project = Project(
                     .release(name: "Release")
                 ]
             )
+        ),
+        .target(
+            name: "V2BarTests",
+            destinations: .macOS,
+            product: .unitTests,
+            bundleId: "top.ygsgdbd.V2BarTests",
+            deploymentTargets: .macOS("14.0"),
+            sources: ["V2BarTests/**"],
+            dependencies: [
+                .target(name: "V2Bar"),
+                .package(product: "CasePaths"),
+                .package(product: "ComposableArchitecture"),
+                .package(product: "Clocks"),
+                .package(product: "Dependencies"),
+                .package(product: "Sharing")
+            ],
+            settings: baseSettings
+        )
+    ],
+    schemes: [
+        .scheme(
+            name: "V2Bar",
+            shared: true,
+            buildAction: .buildAction(targets: ["V2Bar"]),
+            testAction: .targets(["V2BarTests"]),
+            runAction: .runAction(configuration: .debug, executable: "V2Bar"),
+            archiveAction: .archiveAction(configuration: .release)
+        ),
+        .scheme(
+            name: "V2Bar-Dev",
+            shared: true,
+            buildAction: .buildAction(targets: ["V2Bar-Dev"]),
+            runAction: .runAction(configuration: .debug, executable: "V2Bar-Dev"),
+            archiveAction: .archiveAction(configuration: .release)
         )
     ]
 )
