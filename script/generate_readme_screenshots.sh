@@ -246,7 +246,7 @@ APPLESCRIPT
     sleep 0.5
 }
 
-open_recent_reply_menu() {
+open_recent_topic_menu() {
     /usr/bin/osascript - \
         "$APP_PID" "$DISPLAY_LEFT" "$DISPLAY_TOP" "$DISPLAY_RIGHT" "$DISPLAY_BOTTOM" <<'APPLESCRIPT'
 on run argv
@@ -267,13 +267,13 @@ on run argv
                     if itemWidth > 0 and itemHeight > 0 ¬
                         and centerX ≥ displayLeft and centerX < displayRight ¬
                         and centerY ≥ displayTop and centerY < displayBottom then
-                        tell menu item "原生菜单的最近回复现在更清晰了，正文一眼就能看到。" of menu 1 of candidateItem
+                        tell menu item "TypeSwitch - macOS 自动切换输入法" of menu 1 of candidateItem
                             perform action "AXPress"
                             repeat 30 times
                                 if exists menu 1 then return
                                 delay 0.1
                             end repeat
-                            error "The recent reply submenu did not become available."
+                            error "The recent topic submenu did not become available."
                         end tell
                     end if
                 end if
@@ -307,7 +307,7 @@ capture_visible_menus() {
     local -a window_rows
     window_rows=("${(@f)window_list}")
     (( ${#window_rows[@]} >= 2 )) \
-        || fail "The recent reply submenu did not appear."
+        || fail "The recent topic submenu did not appear."
 
     CAPTURE_DIR="$(mktemp -d "${TMPDIR:-/tmp}/v2bar-readme-window-captures.XXXXXX")"
     local -a capture_paths capture_x capture_y capture_width capture_height
@@ -554,7 +554,7 @@ capture_variant() {
 
     "$MENU_WINDOWS_HELPER" snapshot > "$WINDOW_SNAPSHOT"
     open_root_menu
-    open_recent_reply_menu
+    open_recent_topic_menu
     capture_visible_menus "$output_path" "$background"
     close_menu
 

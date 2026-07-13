@@ -89,43 +89,100 @@ struct MenuBarView: View {
 
     @ViewBuilder
     private var notificationsSection: some View {
-        if store.recentNotifications.isEmpty {
-            Text(store.isRefreshing ? "正在获取最近通知…" : "暂无最近通知")
-        } else {
-            Section("最近通知") {
-                ForEach(store.recentNotifications) { notification in
-                    Menu {
-                        Text(notification.plainText)
-                        if let topicURL = notification.topicURL {
-                            Button {
-                                store.send(.openURLTapped(topicURL))
-                            } label: {
-                                Label("打开主题", systemImage: "safari")
-                            }
+        Section("最近通知") {
+            if store.recentNotificationGroups.isEmpty {
+                Text(store.isRefreshing ? "正在获取最近通知…" : "暂无最近通知")
+            } else {
+                ForEach(store.recentNotificationGroups) { group in
+                    notificationGroupMenu(group)
+                }
+            }
+
+            Button {
+                store.send(.openURLTapped(URL(string: "https://www.v2ex.com/notifications")!))
+            } label: {
+                Label("全部通知…", systemImage: "bell")
+            }
+        }
+    }
+
+    private func notificationGroupMenu(_ group: NotificationTopicGroup) -> some View {
+        Menu {
+            ForEach(group.notifications) { notification in
+                if notification.topicURL == nil {
+                    Text(notificationEventTitle(notification))
+                    if group.hasNew {
+                        Button {
+                            store.send(.notificationTapped(notification.id))
+                        } label: {
+                            Label("标记为已读", systemImage: "checkmark")
                         }
-                        if let memberURL = URL(string: "https://www.v2ex.com/member/\(notification.member.username)") {
-                            Button {
-                                store.send(.openURLTapped(memberURL))
-                            } label: {
-                                Label("查看用户", systemImage: "person")
-                            }
-                        }
+                    }
+                } else {
+                    Button {
+                        store.send(.notificationTapped(notification.id))
                     } label: {
                         Image(systemName: notification.kind.systemImage)
-                        Text(notification.menuTitle)
-                            .lineLimit(1)
-                        if let topicTitle = notification.topicTitle {
-                            Text("\(topicTitle) · @\(notification.member.username) · \(notification.createdDate, style: .relative)")
-                                .foregroundStyle(.secondary)
-                                .monospacedDigit()
-                        } else {
-                            Text("@\(notification.member.username) · \(notification.createdDate, style: .relative)")
-                                .foregroundStyle(.secondary)
-                                .monospacedDigit()
-                        }
+                        Text(notificationEventTitle(notification))
+                        Text("@\(notification.member.username) · \(notification.createdDate, style: .relative)")
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
                     }
                 }
             }
+
+            if group.topicURL != nil || !group.members.isEmpty {
+                Divider()
+            }
+
+            if group.topicURL != nil {
+                Button {
+                    store.send(.notificationGroupOpenTapped(group.id))
+                } label: {
+                    Label("打开主题", systemImage: "safari")
+                }
+            }
+
+            if !group.members.isEmpty {
+                Menu {
+                    ForEach(group.members) { member in
+                        if let memberURL = URL(string: "https://www.v2ex.com/member/\(member.username)") {
+                            Button {
+                                store.send(.openURLTapped(memberURL))
+                            } label: {
+                                Label("@\(member.username)", systemImage: "person")
+                            }
+                        }
+                    }
+                } label: {
+                    Label("相关用户", systemImage: "person.2")
+                }
+            }
+        } label: {
+            Image(systemName: group.summary.leadingSystemImage)
+                .symbolRenderingMode(.monochrome)
+                .foregroundStyle(group.hasNew ? Color.accentColor : Color.primary)
+            Text(group.title)
+                .lineLimit(1)
+            notificationGroupSummary(group)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func notificationGroupSummary(_ group: NotificationTopicGroup) -> Text {
+        Text(group.summary.texts.joined(separator: " · "))
+    }
+
+    private func notificationEventTitle(_ notification: V2EXNotification) -> String {
+        switch notification.kind {
+        case .reply:
+            notification.replyTitle
+        case .favorite:
+            "@\(notification.member.username) 收藏了"
+        case .thanks:
+            "@\(notification.member.username) 感谢了"
+        case .other:
+            notification.plainText
         }
     }
 
@@ -196,8 +253,10 @@ struct MenuBarView: View {
         Link(destination: URL(string: "https://www.v2ex.com/new/create")!) {
             Label("创建主题", systemImage: "square.and.pencil")
         }
-        Link(destination: URL(string: "https://www.v2ex.com/notifications")!) {
-            Label("消息中心", systemImage: "bell")
+        if !store.hasToken {
+            Link(destination: URL(string: "https://www.v2ex.com/notifications")!) {
+                Label("消息中心", systemImage: "bell")
+            }
         }
         Link(destination: URL(string: "https://www.v2ex.com/settings")!) {
             Label("个人设置", systemImage: "gearshape")

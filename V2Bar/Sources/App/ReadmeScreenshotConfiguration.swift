@@ -121,38 +121,38 @@ struct ReadmeScreenshotConfiguration: Equatable {
             lastModified: 1
         )
         state.avatarData = NSImage(systemSymbolName: "person.crop.circle.fill", accessibilityDescription: nil)?.tiffRepresentation
-        state.notifications = (0..<10).map { index in
-            let username = index == 0 ? "alice" : "member\(index)"
-            let topicTitle: String
-            let action: String
-            let payload: String?
-            switch index % 3 {
-            case 1:
-                topicTitle = "TypeSwitch - macOS 自动切换输入法"
-                action = "收藏了你发布的主题"
-                payload = nil
-            case 2:
-                topicTitle = "V2Bar - 简洁优雅的 macOS 菜单栏应用"
-                action = "感谢了你发布的主题"
-                payload = nil
-            default:
-                topicTitle = index == 0 ? "欢迎使用 V2Bar" : "原生菜单与 TCA"
-                action = "回复了主题"
-                payload = index == 0
-                    ? "原生菜单的最近回复现在更清晰了，正文一眼就能看到。"
-                    : "这个原生菜单的交互很清晰，期待后续更新。"
-            }
+        let demoNotifications: [(
+            username: String,
+            topicID: Int,
+            topicTitle: String,
+            action: String,
+            payload: String?
+        )] = [
+            ("CSwater", 101, "TypeSwitch - macOS 自动切换输入法", "回复了主题", "试了，好用，非常感谢！"),
+            ("wmwmmkk", 101, "TypeSwitch - macOS 自动切换输入法", "感谢了你发布的主题", nil),
+            ("WilliamColton", 101, "TypeSwitch - macOS 自动切换输入法", "感谢了你发布的主题", nil),
+            ("AccelerXu", 102, "V2Bar - 简洁优雅的 macOS 菜单栏应用", "回复了主题", "mac 到手已经 star 并用上了"),
+            ("Shmily", 102, "V2Bar - 简洁优雅的 macOS 菜单栏应用", "收藏了你发布的主题", nil),
+            ("OneEvent", 102, "V2Bar - 简洁优雅的 macOS 菜单栏应用", "感谢了你发布的主题", nil),
+            ("linshang", 103, "VastWords - 自动监控您的剪贴板", "收藏了你发布的主题", nil),
+            ("scorez", 103, "VastWords - 自动监控您的剪贴板", "收藏了你发布的主题", nil),
+            ("OneEvent", 104, "有关 App 版本和状态栏的建议", "回复了主题", "有可能会有 App 版本嘛，状态栏的版本很好。"),
+            ("callv", 104, "有关 App 版本和状态栏的建议", "回复了主题", "macOS 12 用不了。"),
+        ]
+        state.notifications = demoNotifications.enumerated().map { index, item in
             return V2EXNotification(
                 id: index + 1,
                 memberId: index + 1,
                 forMemberId: 1,
-                text: "<a href=\"/member/\(username)\">\(username)</a> \(action) <a href=\"/t/\(100 + index)\">\(topicTitle)</a>",
-                payload: payload,
-                payloadRendered: payload ?? "",
+                text: "<a href=\"/member/\(item.username)\">\(item.username)</a> \(item.action) <a href=\"/t/\(item.topicID)#reply\(index + 1)\">\(item.topicTitle)</a>",
+                payload: item.payload,
+                payloadRendered: item.payload ?? "",
                 created: Int(now.timeIntervalSince1970) - index * 300,
-                member: NotificationMember(username: username)
+                member: NotificationMember(username: item.username)
             )
         }
+        state.knownNotificationIDs = Set(state.notifications.map(\.id))
+        state.newNotificationIDs = [1]
         return state
     }
 

@@ -19,6 +19,106 @@ final class ModelTests: XCTestCase {
         XCTAssertEqual(notification.topicURL, URL(string: "https://www.v2ex.com/t/123#reply1"))
     }
 
+    func testNotificationTopicIdentityIgnoresReplyFragment() {
+        let notification = makeNotification(
+            text: #"<a href="/member/alice">alice</a> 回复了 <a href="/t/123?p=2#reply9">主题</a>"#,
+            payload: "回复内容"
+        )
+
+        XCTAssertEqual(notification.topicID, 123)
+        XCTAssertEqual(notification.canonicalTopicURL, URL(string: "https://www.v2ex.com/t/123"))
+    }
+
+    func testNotificationTopicGroupsMergeEventsAndBuildSummary() throws {
+        let reply = makeNotification(
+            id: 3,
+            memberId: 1,
+            text: #"<a href="/member/alice">alice</a> 回复了 <a href="/t/123#reply3">TypeSwitch</a>"#,
+            payload: "完整回复内容",
+            created: 3,
+            username: "alice"
+        )
+        let thanks = makeNotification(
+            id: 2,
+            memberId: 2,
+            text: #"<a href="/member/bob">bob</a> 感谢了 <a href="/t/123">TypeSwitch</a>"#,
+            payload: nil,
+            created: 2,
+            username: "bob"
+        )
+        let otherTopic = makeNotification(
+            id: 1,
+            memberId: 3,
+            text: #"<a href="/member/carol">carol</a> 收藏了 <a href="/t/456">V2Bar</a>"#,
+            payload: nil,
+            created: 1,
+            username: "carol"
+        )
+
+        let groups = NotificationTopicGroup.makeGroups(
+            from: [otherTopic, thanks, reply],
+            newNotificationIDs: [reply.id],
+            limit: 5
+        )
+        let group = try XCTUnwrap(groups.first)
+
+        XCTAssertEqual(groups.map(\.id), [.topic(123), .topic(456)])
+        XCTAssertEqual(group.notifications.map(\.id), [3, 2])
+        XCTAssertEqual(group.title, "TypeSwitch")
+        XCTAssertEqual(group.replyCount, 1)
+        XCTAssertEqual(group.thanksCount, 1)
+        XCTAssertEqual(group.newReplyCount, 1)
+        XCTAssertEqual(
+            group.summary,
+            NotificationGroupSummary(
+                leadingSystemImage: "bubble.left.fill",
+                texts: ["1 条新回复", "1 个感谢"]
+            )
+        )
+        XCTAssertEqual(group.members.map(\.username), ["alice", "bob"])
+    }
+
+    func testNotificationWithoutTopicRemainsIndependent() {
+        let notification = makeNotification(
+            id: 7,
+            text: "系统通知",
+            payload: nil
+        )
+
+        let groups = NotificationTopicGroup.makeGroups(
+            from: [notification],
+            newNotificationIDs: [],
+            limit: 5
+        )
+
+        XCTAssertEqual(groups.map(\.id), [.notification(7)])
+        XCTAssertEqual(groups.first?.title, "系统通知")
+    }
+
+    func testNewSystemNotificationUsesNotificationSummary() throws {
+        let notification = makeNotification(
+            id: 7,
+            text: "系统通知",
+            payload: nil
+        )
+
+        let group = try XCTUnwrap(
+            NotificationTopicGroup.makeGroups(
+                from: [notification],
+                newNotificationIDs: [notification.id],
+                limit: 5
+            ).first
+        )
+
+        XCTAssertEqual(
+            group.summary,
+            NotificationGroupSummary(
+                leadingSystemImage: "bell.badge.fill",
+                texts: ["1 条新通知"]
+            )
+        )
+    }
+
     func testNotificationReplyTitleUsesPayload() {
         let notification = makeNotification(payload: "实际回复内容")
 
@@ -108,18 +208,22 @@ final class ModelTests: XCTestCase {
     }
 
     private func makeNotification(
+        id: Int = 1,
+        memberId: Int = 1,
         text: String = #"<a href="/member/alice">alice</a> 回复了 <a href="/t/123#reply1">主题</a>"#,
-        payload: String?
+        payload: String?,
+        created: Int = 1,
+        username: String = "alice"
     ) -> V2EXNotification {
         V2EXNotification(
-            id: 1,
-            memberId: 1,
+            id: id,
+            memberId: memberId,
             forMemberId: 2,
             text: text,
             payload: payload,
             payloadRendered: "",
-            created: 1,
-            member: .init(username: "alice")
+            created: created,
+            member: .init(username: username)
         )
     }
 }
