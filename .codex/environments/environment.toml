@@ -7,5 +7,5 @@ script = ""
 
 [setup.darwin]
 script = '''
-tuist generate
+tuist generate --no-open
 codegraph init'''
