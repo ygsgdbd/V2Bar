@@ -77,8 +77,10 @@ struct AppFeature {
         var isReadmeDemo = false
         var isSettingLaunchAtLogin = false
         var isValidatingToken = false
+        var knownNotificationIDs: Set<Int>?
         var lastUpdated: Date?
         var launchAtLoginStatus: LaunchAtLoginStatus = .disabled
+        var newNotificationIDs: Set<Int> = []
         var notifications: [V2EXNotification] = []
         var profile: V2EXUserProfile?
         var tokenInfo: V2EXTokenInfo?
@@ -127,7 +129,19 @@ struct AppFeature {
         }
 
         var recentNotifications: [V2EXNotification] {
-            Array(notifications.sorted { $0.created > $1.created }.prefix(10))
+            Array(
+                notifications
+                    .sorted { ($0.created, $0.id) > ($1.created, $1.id) }
+                    .prefix(10)
+            )
+        }
+
+        var recentNotificationGroups: [NotificationTopicGroup] {
+            NotificationTopicGroup.makeGroups(
+                from: recentNotifications,
+                newNotificationIDs: newNotificationIDs,
+                limit: 5
+            )
         }
 
         var accountRefreshStatus: AccountRefreshStatus {
@@ -153,6 +167,8 @@ struct AppFeature {
         case launchAtLoginSetFinished(LaunchAtLoginStatus, String?)
         case openLoginItemsSettingsTapped
         case openURLTapped(URL)
+        case notificationGroupOpenTapped(NotificationGroupID)
+        case notificationTapped(Int)
         case checkForUpdatesTapped
         case quitTapped
     }
@@ -268,6 +284,7 @@ struct AppFeature {
                 state.isValidatingToken = false
                 switch result {
                 case let .success(tokenInfo):
+                    resetNotificationTracking(&state)
                     state.$token.withLock { $0 = candidate }
                     state.tokenInfo = tokenInfo
                     return .merge(
@@ -288,6 +305,7 @@ struct AppFeature {
                 state.errorMessage = nil
                 state.inFlightRefreshes = []
                 state.isMenuOpenRefreshInFlight = false
+                resetNotificationTracking(&state)
                 state.notifications = []
                 state.profile = nil
                 state.tokenInfo = nil
@@ -332,6 +350,22 @@ struct AppFeature {
 
             case let .openURLTapped(url):
                 return .run { _ in _ = await applicationClient.open(url) }
+
+            case let .notificationGroupOpenTapped(groupID):
+                let topicURL = state.recentNotificationGroups
+                    .first { $0.id == groupID }?
+                    .topicURL
+                markNotificationGroupSeen(groupID, in: &state)
+                guard let topicURL else { return .none }
+                return .run { _ in _ = await applicationClient.open(topicURL) }
+
+            case let .notificationTapped(notificationID):
+                guard let notification = state.notifications.first(where: { $0.id == notificationID }) else {
+                    return .none
+                }
+                markNotificationGroupSeen(notification.groupID, in: &state)
+                guard let topicURL = notification.topicURL else { return .none }
+                return .run { _ in _ = await applicationClient.open(topicURL) }
 
             case .checkForUpdatesTapped:
                 guard !state.isReadmeDemo else { return .none }
@@ -403,6 +437,15 @@ struct AppFeature {
         }
         switch result.notifications {
         case let .success(value):
+            let currentNotificationIDs = Set(value.map(\.id))
+            if let knownNotificationIDs = state.knownNotificationIDs {
+                state.newNotificationIDs.formUnion(
+                    currentNotificationIDs.subtracting(knownNotificationIDs)
+                )
+                state.knownNotificationIDs?.formUnion(currentNotificationIDs)
+            } else {
+                state.knownNotificationIDs = currentNotificationIDs
+            }
             state.notifications = value
             didUpdateCoreData = true
         case let .failure(error): errors.append(error.localizedDescription)
@@ -417,6 +460,21 @@ struct AppFeature {
         if didUpdateCoreData {
             state.lastUpdated = now
         }
+    }
+
+    private func markNotificationGroupSeen(
+        _ groupID: NotificationGroupID,
+        in state: inout State
+    ) {
+        let notificationIDs = state.notifications
+            .filter { $0.groupID == groupID }
+            .map(\.id)
+        state.newNotificationIDs.subtract(notificationIDs)
+    }
+
+    private func resetNotificationTracking(_ state: inout State) {
+        state.knownNotificationIDs = nil
+        state.newNotificationIDs = []
     }
 
     private func loadLaunchAtLoginStatus() -> Effect<Action> {

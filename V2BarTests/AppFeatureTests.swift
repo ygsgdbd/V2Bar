@@ -166,6 +166,7 @@ final class AppFeatureTests: XCTestCase {
             $0.isMenuPresented = false
             $0.tokenInfo = .fixture
             $0.profile = profile
+            $0.knownNotificationIDs = []
             $0.notifications = []
             $0.deferredRefresh = nil
             $0.lastUpdated = Date(timeIntervalSince1970: 1_000)
@@ -223,6 +224,8 @@ final class AppFeatureTests: XCTestCase {
         state.tokenInfo = .fixture
         state.profile = .fixture(username: "yangguan")
         state.notifications = [.fixture]
+        state.knownNotificationIDs = [V2EXNotification.fixture.id]
+        state.newNotificationIDs = [V2EXNotification.fixture.id]
 
         let store = TestStore(initialState: state) {
             AppFeature()
@@ -232,6 +235,8 @@ final class AppFeatureTests: XCTestCase {
             $0.$token.withLock { $0 = "" }
             $0.tokenInfo = nil
             $0.profile = nil
+            $0.knownNotificationIDs = nil
+            $0.newNotificationIDs = []
             $0.notifications = []
             $0.avatarData = nil
             $0.errorMessage = nil
@@ -260,6 +265,7 @@ final class AppFeatureTests: XCTestCase {
         await store.send(.refreshResponse(refresh)) {
             $0.inFlightRefreshes = []
             $0.tokenInfo = .fixture
+            $0.knownNotificationIDs = [V2EXNotification.fixture.id]
             $0.notifications = [.fixture]
             $0.errorMessage = "offline"
             $0.lastUpdated = now
@@ -348,6 +354,114 @@ final class AppFeatureTests: XCTestCase {
         XCTAssertEqual(state.recentNotifications.map(\.id), Array((2..<12).reversed()))
     }
 
+    func testRecentNotificationGroupsMergeTopicsAndLimitToFive() {
+        var state = AppFeature.State(token: "token")
+        state.notifications = [
+            notification(id: 12, topicID: 100, created: 12),
+            notification(id: 11, topicID: 100, created: 11),
+            notification(id: 10, topicID: 200, created: 10),
+            notification(id: 9, topicID: 300, created: 9),
+            notification(id: 8, topicID: 400, created: 8),
+            notification(id: 7, topicID: 500, created: 7),
+            notification(id: 6, topicID: 600, created: 6),
+            notification(id: 5, topicID: 700, created: 5),
+            notification(id: 4, topicID: 800, created: 4),
+            notification(id: 3, topicID: 900, created: 3),
+            notification(id: 2, topicID: 1_000, created: 2),
+            notification(id: 1, topicID: 1_100, created: 1),
+        ]
+
+        XCTAssertEqual(
+            state.recentNotificationGroups.map(\.id),
+            [.topic(100), .topic(200), .topic(300), .topic(400), .topic(500)]
+        )
+        XCTAssertEqual(state.recentNotificationGroups.first?.notifications.map(\.id), [12, 11])
+    }
+
+    func testNotificationRefreshTracksNewIDsAfterInitialBaseline() async {
+        let initial = notification(id: 1, topicID: 100, created: 1)
+        let added = notification(id: 2, topicID: 100, created: 2)
+        let store = TestStore(initialState: AppFeature.State(token: "token")) {
+            AppFeature()
+        } withDependencies: {
+            $0.date.now = Date(timeIntervalSince1970: 1_000)
+        }
+        store.exhaustivity = .off(showSkippedAssertions: false)
+
+        await store.send(.refreshResponse(refreshResult(notifications: .success([initial]))))
+        XCTAssertEqual(store.state.knownNotificationIDs, [initial.id])
+        XCTAssertTrue(store.state.newNotificationIDs.isEmpty)
+
+        await store.send(.refreshResponse(refreshResult(notifications: .success([added, initial]))))
+        XCTAssertEqual(store.state.knownNotificationIDs, [initial.id, added.id])
+        XCTAssertEqual(store.state.newNotificationIDs, [added.id])
+
+        await store.send(.refreshResponse(refreshResult(notifications: .success([added, initial]))))
+        XCTAssertEqual(store.state.newNotificationIDs, [added.id])
+    }
+
+    func testOpeningNotificationClearsNewStateForItsTopic() async {
+        let first = notification(id: 1, topicID: 100, created: 1)
+        let second = notification(id: 2, topicID: 100, created: 2)
+        var openedURL: URL?
+        var state = AppFeature.State(token: "token")
+        state.notifications = [second, first]
+        state.knownNotificationIDs = [first.id, second.id]
+        state.newNotificationIDs = [first.id, second.id]
+        let store = TestStore(initialState: state) {
+            AppFeature()
+        } withDependencies: {
+            $0.applicationClient.open = {
+                openedURL = $0
+                return true
+            }
+        }
+
+        await store.send(.notificationTapped(second.id)) {
+            $0.newNotificationIDs = []
+        }
+        XCTAssertEqual(openedURL, URL(string: "https://www.v2ex.com/t/100#reply2"))
+    }
+
+    func testOpeningNotificationGroupUsesCanonicalTopicURL() async {
+        let notification = notification(id: 1, topicID: 100, created: 1)
+        var openedURL: URL?
+        var state = AppFeature.State(token: "token")
+        state.notifications = [notification]
+        state.knownNotificationIDs = [notification.id]
+        state.newNotificationIDs = [notification.id]
+        let store = TestStore(initialState: state) {
+            AppFeature()
+        } withDependencies: {
+            $0.applicationClient.open = {
+                openedURL = $0
+                return true
+            }
+        }
+
+        await store.send(.notificationGroupOpenTapped(.topic(100))) {
+            $0.newNotificationIDs = []
+        }
+        XCTAssertEqual(openedURL, URL(string: "https://www.v2ex.com/t/100"))
+    }
+
+    func testFailedNotificationRefreshDoesNotCreateBaseline() async {
+        let initial = notification(id: 1, topicID: 100, created: 1)
+        let store = TestStore(initialState: AppFeature.State(token: "token")) {
+            AppFeature()
+        } withDependencies: {
+            $0.date.now = Date(timeIntervalSince1970: 1_000)
+        }
+        store.exhaustivity = .off(showSkippedAssertions: false)
+
+        await store.send(.refreshResponse(refreshResult(notifications: .failure(.transport("offline")))))
+        XCTAssertNil(store.state.knownNotificationIDs)
+
+        await store.send(.refreshResponse(refreshResult(notifications: .success([initial]))))
+        XCTAssertEqual(store.state.knownNotificationIDs, [initial.id])
+        XCTAssertTrue(store.state.newNotificationIDs.isEmpty)
+    }
+
     func testAccountRefreshStatus() {
         var state = AppFeature.State(token: "token")
         XCTAssertEqual(state.accountRefreshStatus, .notUpdated)
@@ -358,6 +472,29 @@ final class AppFeatureTests: XCTestCase {
 
         state.inFlightRefreshes = [.profile]
         XCTAssertEqual(state.accountRefreshStatus, .refreshing)
+    }
+
+    private func notification(id: Int, topicID: Int, created: Int) -> V2EXNotification {
+        V2EXNotification(
+            id: id,
+            memberId: id,
+            forMemberId: 1,
+            text: #"<a href="/member/member\#(id)">member\#(id)</a> 回复了 <a href="/t/\#(topicID)#reply\#(id)">主题 \#(topicID)</a>"#,
+            payload: "回复 \(id)",
+            payloadRendered: "回复 \(id)",
+            created: created,
+            member: .init(username: "member\(id)")
+        )
+    }
+
+    private func refreshResult(
+        notifications: Result<[V2EXNotification], V2EXClientError>
+    ) -> RefreshResult {
+        RefreshResult(
+            tokenInfo: .failure(.transport("ignored")),
+            profile: .failure(.transport("ignored")),
+            notifications: notifications
+        )
     }
 }
 

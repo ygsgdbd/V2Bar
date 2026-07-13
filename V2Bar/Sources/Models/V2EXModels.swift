@@ -16,6 +16,142 @@ enum NotificationKind: Equatable, Sendable {
     }
 }
 
+enum NotificationGroupID: Equatable, Hashable, Sendable {
+    case topic(Int)
+    case notification(Int)
+}
+
+struct NotificationGroupSummary: Equatable, Sendable {
+    let leadingSystemImage: String
+    let texts: [String]
+}
+
+struct NotificationGroupMember: Equatable, Identifiable, Sendable {
+    let id: Int
+    let username: String
+}
+
+struct NotificationTopicGroup: Equatable, Identifiable, Sendable {
+    let id: NotificationGroupID
+    let notifications: [V2EXNotification]
+    let newNotificationIDs: Set<Int>
+
+    var title: String {
+        switch id {
+        case .topic:
+            notifications.compactMap(\.topicTitle).first ?? notifications[0].plainText
+        case .notification:
+            notifications[0].menuTitle
+        }
+    }
+
+    var topicURL: URL? {
+        notifications.compactMap(\.canonicalTopicURL).first
+    }
+
+    var hasNew: Bool {
+        !newNotificationIDs.isEmpty
+    }
+
+    var replyCount: Int {
+        notifications.count { $0.kind == .reply }
+    }
+
+    var thanksCount: Int {
+        notifications.count { $0.kind == .thanks }
+    }
+
+    var favoriteCount: Int {
+        notifications.count { $0.kind == .favorite }
+    }
+
+    var newCount: Int {
+        notifications.count { newNotificationIDs.contains($0.id) }
+    }
+
+    var newReplyCount: Int {
+        notifications.count { $0.kind == .reply && newNotificationIDs.contains($0.id) }
+    }
+
+    var newInteractionCount: Int {
+        notifications.count {
+            $0.kind != .other && newNotificationIDs.contains($0.id)
+        }
+    }
+
+    var members: [NotificationGroupMember] {
+        var memberIDs: Set<Int> = []
+        return notifications.compactMap { notification in
+            guard memberIDs.insert(notification.memberId).inserted else { return nil }
+            return NotificationGroupMember(
+                id: notification.memberId,
+                username: notification.member.username
+            )
+        }
+    }
+
+    var summary: NotificationGroupSummary {
+        var leadingSystemImage: String?
+        var texts: [String] = []
+        if newReplyCount > 0 {
+            leadingSystemImage = "bubble.left.fill"
+            texts.append("\(newReplyCount) 条新回复")
+        } else if newInteractionCount > 0 {
+            leadingSystemImage = "bell.badge.fill"
+            texts.append("\(newInteractionCount) 条新互动")
+        } else if newCount > 0 {
+            leadingSystemImage = "bell.badge.fill"
+            texts.append("\(newCount) 条新通知")
+        } else if replyCount > 0 {
+            leadingSystemImage = "bubble.left"
+            texts.append("\(replyCount) 条回复")
+        }
+
+        if texts.count < 2, thanksCount > 0 {
+            leadingSystemImage = leadingSystemImage ?? "heart.fill"
+            texts.append("\(thanksCount) 个感谢")
+        }
+        if texts.count < 2, favoriteCount > 0 {
+            leadingSystemImage = leadingSystemImage ?? "bookmark.fill"
+            texts.append("\(favoriteCount) 个收藏")
+        }
+        if texts.isEmpty {
+            leadingSystemImage = "bell"
+            texts.append("\(notifications.count) 条通知")
+        }
+        return NotificationGroupSummary(
+            leadingSystemImage: leadingSystemImage ?? "bell",
+            texts: texts
+        )
+    }
+
+    static func makeGroups(
+        from notifications: [V2EXNotification],
+        newNotificationIDs: Set<Int>,
+        limit: Int
+    ) -> [Self] {
+        let sortedNotifications = notifications.sorted {
+            ($0.created, $0.id) > ($1.created, $1.id)
+        }
+        let grouped = Dictionary(grouping: sortedNotifications, by: \.groupID)
+        return grouped
+            .map { id, notifications in
+                Self(
+                    id: id,
+                    notifications: notifications,
+                    newNotificationIDs: newNotificationIDs.intersection(notifications.map(\.id))
+                )
+            }
+            .sorted {
+                let lhs = $0.notifications[0]
+                let rhs = $1.notifications[0]
+                return (lhs.created, lhs.id) > (rhs.created, rhs.id)
+            }
+            .prefix(limit)
+            .map { $0 }
+    }
+}
+
 struct V2EXResponse<Value: Codable & Sendable>: Codable, Sendable {
     let success: Bool
     let message: String?
@@ -76,6 +212,32 @@ struct V2EXNotification: Codable, Equatable, Identifiable, Sendable {
 
     var topicTitle: String? {
         links.first { $0.url.path.hasPrefix("/t/") }?.title
+    }
+
+    var topicID: Int? {
+        guard let topicURL else { return nil }
+        let components = topicURL.pathComponents
+        guard let topicIndex = components.firstIndex(of: "t"),
+              components.indices.contains(topicIndex + 1)
+        else {
+            return nil
+        }
+        return Int(components[topicIndex + 1])
+    }
+
+    var canonicalTopicURL: URL? {
+        guard topicID != nil, let topicURL,
+              var components = URLComponents(url: topicURL, resolvingAgainstBaseURL: true)
+        else {
+            return nil
+        }
+        components.query = nil
+        components.fragment = nil
+        return components.url
+    }
+
+    var groupID: NotificationGroupID {
+        topicID.map(NotificationGroupID.topic) ?? .notification(id)
     }
 
     var menuTitle: String {
