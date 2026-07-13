@@ -19,5 +19,9 @@ final class ReadmeScreenshotConfigurationTests: XCTestCase {
 
         XCTAssertEqual(Array(notifications.prefix(3).map(\.kind)), [.reply, .favorite, .thanks])
         XCTAssertEqual(notifications.first?.menuTitle, "原生菜单的最近回复现在更清晰了，正文一眼就能看到。")
+        XCTAssertEqual(notifications[1].menuTitle, "收藏了")
+        XCTAssertEqual(notifications[1].topicTitle, "TypeSwitch - macOS 自动切换输入法")
+        XCTAssertEqual(notifications[2].menuTitle, "感谢了")
+        XCTAssertEqual(notifications[2].topicTitle, "V2Bar - 简洁优雅的 macOS 菜单栏应用")
     }
 }

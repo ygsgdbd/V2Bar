@@ -141,7 +141,6 @@ struct AppFeature {
         case task
         case menuPresented
         case menuDismissed
-        case refreshTapped
         case refreshResponse(RefreshResult)
         case autoRefreshModeTapped(AutoRefreshMode)
         case autoRefreshTick
@@ -154,7 +153,6 @@ struct AppFeature {
         case launchAtLoginSetFinished(LaunchAtLoginStatus, String?)
         case openLoginItemsSettingsTapped
         case openURLTapped(URL)
-        case showAboutTapped
         case checkForUpdatesTapped
         case quitTapped
     }
@@ -206,18 +204,6 @@ struct AppFeature {
                 state.isMenuOpenRefreshInFlight = false
                 apply(result, to: &state)
                 return .none
-
-            case .refreshTapped:
-                guard !state.isReadmeDemo, state.hasToken else { return .none }
-                if state.isMenuPresented {
-                    guard !state.isMenuOpenRefreshInFlight,
-                          state.deferredRefresh == nil
-                    else {
-                        return .none
-                    }
-                    return startMenuOpenRefresh(&state)
-                }
-                return startRefresh(&state)
 
             case let .refreshResponse(result):
                 if state.isMenuPresented {
@@ -346,9 +332,6 @@ struct AppFeature {
 
             case let .openURLTapped(url):
                 return .run { _ in _ = await applicationClient.open(url) }
-
-            case .showAboutTapped:
-                return .run { _ in await applicationClient.showAbout() }
 
             case .checkForUpdatesTapped:
                 guard !state.isReadmeDemo else { return .none }
