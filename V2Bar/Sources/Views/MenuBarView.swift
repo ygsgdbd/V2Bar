@@ -9,11 +9,16 @@ struct MenuBarView: View {
         Group {
             accountSection
 
+            Divider()
+
+            v2exLinks
+
             if let errorMessage = store.errorMessage {
                 Label(errorMessage, systemImage: "exclamationmark.triangle")
             }
 
             if store.hasToken {
+                Divider()
                 notificationsSection
             }
 
@@ -23,11 +28,7 @@ struct MenuBarView: View {
 
             Divider()
 
-            v2exLinks
-
-            Divider()
-
-            refreshControls
+            autoRefreshControls
             launchAtLoginControls
 
             Button {
@@ -38,12 +39,6 @@ struct MenuBarView: View {
 
             Link(destination: URL(string: "https://github.com/ygsgdbd/V2Bar")!) {
                 Label("GitHub 仓库", systemImage: "chevron.left.forwardslash.chevron.right")
-            }
-
-            Button {
-                store.send(.showAboutTapped)
-            } label: {
-                Label("关于 V2Bar", systemImage: "info.circle")
             }
 
             Button {
@@ -119,16 +114,18 @@ struct MenuBarView: View {
                         Image(systemName: notification.kind.systemImage)
                         Text(notification.menuTitle)
                             .lineLimit(1)
-                        Text("@\(notification.member.username) · \(notification.createdDate, style: .relative)")
-                            .foregroundStyle(.secondary)
-                            .monospacedDigit()
+                        if let topicTitle = notification.topicTitle {
+                            Text("\(topicTitle) · @\(notification.member.username) · \(notification.createdDate, style: .relative)")
+                                .foregroundStyle(.secondary)
+                                .monospacedDigit()
+                        } else {
+                            Text("@\(notification.member.username) · \(notification.createdDate, style: .relative)")
+                                .foregroundStyle(.secondary)
+                                .monospacedDigit()
+                        }
                     }
                 }
             }
-        }
-
-        Link(destination: URL(string: "https://www.v2ex.com/notifications")!) {
-            Label("消息中心", systemImage: "bell")
         }
     }
 
@@ -199,21 +196,16 @@ struct MenuBarView: View {
         Link(destination: URL(string: "https://www.v2ex.com/new/create")!) {
             Label("创建主题", systemImage: "square.and.pencil")
         }
+        Link(destination: URL(string: "https://www.v2ex.com/notifications")!) {
+            Label("消息中心", systemImage: "bell")
+        }
         Link(destination: URL(string: "https://www.v2ex.com/settings")!) {
             Label("个人设置", systemImage: "gearshape")
         }
     }
 
     @ViewBuilder
-    private var refreshControls: some View {
-        Button {
-            store.send(.refreshTapped)
-        } label: {
-            Label("刷新", systemImage: "arrow.clockwise")
-        }
-        .disabled(!store.hasToken || store.isRefreshing)
-        .keyboardShortcut("r")
-
+    private var autoRefreshControls: some View {
         Menu {
             ForEach(AutoRefreshMode.allCases) { mode in
                 Button {

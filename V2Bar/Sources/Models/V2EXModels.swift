@@ -83,9 +83,9 @@ struct V2EXNotification: Codable, Equatable, Identifiable, Sendable {
         case .reply:
             replyTitle
         case .favorite:
-            topicTitle.map { "收藏了：\($0)" } ?? plainText
+            topicTitle == nil ? plainText : "收藏了"
         case .thanks:
-            topicTitle.map { "感谢了：\($0)" } ?? plainText
+            topicTitle == nil ? plainText : "感谢了"
         case .other:
             plainText
         }

@@ -4,7 +4,6 @@ import ServiceManagement
 
 struct ApplicationClient: Sendable {
     var open: @MainActor @Sendable (URL) -> Bool
-    var showAbout: @MainActor @Sendable () -> Void
     var openLoginItemsSettings: @MainActor @Sendable () -> Void
     var quit: @MainActor @Sendable () -> Void
 }
@@ -12,9 +11,6 @@ struct ApplicationClient: Sendable {
 extension ApplicationClient: DependencyKey {
     static let liveValue = Self(
         open: { NSWorkspace.shared.open($0) },
-        showAbout: {
-            NSApplication.shared.orderFrontStandardAboutPanel(nil)
-        },
         openLoginItemsSettings: {
             SMAppService.openSystemSettingsLoginItems()
         },
@@ -27,7 +23,6 @@ extension ApplicationClient: DependencyKey {
 
     static let noop = Self(
         open: { _ in false },
-        showAbout: {},
         openLoginItemsSettings: {},
         quit: {}
     )

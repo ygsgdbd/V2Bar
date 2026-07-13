@@ -14,9 +14,6 @@ final class SystemClientsTests: XCTestCase {
                 recorder.openedURL = receivedURL
                 return true
             },
-            showAbout: {
-                recorder.didShowAbout = true
-            },
             openLoginItemsSettings: {
                 recorder.didOpenLoginItemsSettings = true
             },
@@ -26,12 +23,10 @@ final class SystemClientsTests: XCTestCase {
         )
 
         XCTAssertTrue(client.open(url))
-        client.showAbout()
         client.openLoginItemsSettings()
         client.quit()
 
         XCTAssertEqual(recorder.openedURL, url)
-        XCTAssertTrue(recorder.didShowAbout)
         XCTAssertTrue(recorder.didOpenLoginItemsSettings)
         XCTAssertTrue(recorder.didQuit)
     }
@@ -109,7 +104,6 @@ final class SystemClientsTests: XCTestCase {
 @MainActor
 private final class ApplicationRecorder {
     var openedURL: URL?
-    var didShowAbout = false
     var didOpenLoginItemsSettings = false
     var didQuit = false
 }

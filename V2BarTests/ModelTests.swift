@@ -69,7 +69,7 @@ final class ModelTests: XCTestCase {
         XCTAssertEqual(notification.kind, .reply)
     }
 
-    func testNotificationMenuTitlesUseKindAndTopicTitle() {
+    func testNotificationMenuTitlesUseKindAndKeepTopicAsContext() {
         let favorite = makeNotification(
             text: #"<a href="/member/alice">alice</a> 收藏了 <a href="/t/123">TypeSwitch &amp; V2Bar</a>"#,
             payload: nil
@@ -80,8 +80,9 @@ final class ModelTests: XCTestCase {
         )
 
         XCTAssertEqual(favorite.topicTitle, "TypeSwitch & V2Bar")
-        XCTAssertEqual(favorite.menuTitle, "收藏了：TypeSwitch & V2Bar")
-        XCTAssertEqual(thanks.menuTitle, "感谢了：原生菜单")
+        XCTAssertEqual(favorite.menuTitle, "收藏了")
+        XCTAssertEqual(thanks.topicTitle, "原生菜单")
+        XCTAssertEqual(thanks.menuTitle, "感谢了")
         XCTAssertEqual(makeNotification(payload: "实际回复").menuTitle, "实际回复")
     }
 
@@ -89,6 +90,13 @@ final class ModelTests: XCTestCase {
         let notification = makeNotification(text: "alice 收藏了你的主题", payload: nil)
 
         XCTAssertEqual(notification.menuTitle, "alice 收藏了你的主题")
+    }
+
+    func testNotificationMenuTitleFallsBackForUnknownKind() {
+        let notification = makeNotification(text: "系统通知", payload: nil)
+
+        XCTAssertEqual(notification.menuTitle, "系统通知")
+        XCTAssertNil(notification.topicTitle)
     }
 
     func testAutoRefreshIntervals() {

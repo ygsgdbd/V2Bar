@@ -22,7 +22,42 @@ final class AppFeatureTests: XCTestCase {
         }
     }
 
-    func testReadmeDemoIgnoresRefreshAndTokenActions() async {
+    func testTaskWithTokenFetchesAccountAndNotifications() async {
+        let calls = StartupRefreshCallRecorder()
+        let store = TestStore(initialState: AppFeature.State(token: "token")) {
+            AppFeature()
+        } withDependencies: {
+            $0.date.now = Date(timeIntervalSince1970: 1_000)
+            $0.launchAtLoginClient.status = { .disabled }
+            $0.v2exClient.fetchTokenInfo = { token in
+                await calls.recordTokenInfo(token)
+                return .fixture
+            }
+            $0.v2exClient.fetchProfile = { token in
+                await calls.recordProfile(token)
+                return .fixture(username: "yangguan")
+            }
+            $0.v2exClient.fetchNotifications = { token in
+                await calls.recordNotifications(token)
+                return [.fixture]
+            }
+        }
+        store.exhaustivity = .off(showSkippedAssertions: false)
+
+        await store.send(.task)
+        for _ in 0..<100 where await calls.totalCallCount < 3 {
+            await Task.yield()
+        }
+
+        let tokenInfoTokens = await calls.tokenInfoTokens
+        let profileTokens = await calls.profileTokens
+        let notificationTokens = await calls.notificationTokens
+        XCTAssertEqual(tokenInfoTokens, ["token"])
+        XCTAssertEqual(profileTokens, ["token"])
+        XCTAssertEqual(notificationTokens, ["token"])
+    }
+
+    func testReadmeDemoIgnoresTokenActions() async {
         let store = TestStore(
             initialState: AppFeature.State(token: "demo-token", isReadmeDemo: true)
         ) {
@@ -42,7 +77,6 @@ final class AppFeatureTests: XCTestCase {
             }
         }
 
-        await store.send(.refreshTapped)
         await store.send(.autoRefreshModeTapped(.fiveMinutes))
         await store.send(.tokenEditTapped)
         await store.send(.tokenPromptResponse("new-token"))
@@ -138,7 +172,7 @@ final class AppFeatureTests: XCTestCase {
         }
     }
 
-    func testMenuRefreshDoesNotOverwriteDeferredResult() async {
+    func testMenuAutoRefreshDoesNotOverwriteDeferredResult() async {
         let deferred = RefreshResult(
             tokenInfo: .success(.fixture),
             profile: .success(.fixture(username: "first-user")),
@@ -157,7 +191,6 @@ final class AppFeatureTests: XCTestCase {
             }
         }
 
-        await store.send(.refreshTapped)
         XCTAssertEqual(store.state.deferredRefresh, deferred)
         await store.send(.autoRefreshModeTapped(.onMenuOpen)) {
             $0.$autoRefreshMode.withLock { $0 = .onMenuOpen }
@@ -345,6 +378,28 @@ private actor LaunchAtLoginCallRecorder {
 
     func append(_ value: Bool) {
         values.append(value)
+    }
+}
+
+private actor StartupRefreshCallRecorder {
+    private(set) var notificationTokens: [String] = []
+    private(set) var profileTokens: [String] = []
+    private(set) var tokenInfoTokens: [String] = []
+
+    var totalCallCount: Int {
+        notificationTokens.count + profileTokens.count + tokenInfoTokens.count
+    }
+
+    func recordTokenInfo(_ token: String) {
+        tokenInfoTokens.append(token)
+    }
+
+    func recordProfile(_ token: String) {
+        profileTokens.append(token)
+    }
+
+    func recordNotifications(_ token: String) {
+        notificationTokens.append(token)
     }
 }
 
