@@ -1,123 +1,154 @@
-# V2Bar 🌟
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="Screenshots/icon-dark.png">
+    <source media="(prefers-color-scheme: light)" srcset="Screenshots/icon-light.png">
+    <img src="Screenshots/icon-light.png" width="160" height="160" alt="V2Bar 图标">
+  </picture>
+</p>
 
-<div align="center">
-    <img src="Screenshots/icon.png" width="160" height="160" alt="V2Bar Icon">
-</div>
+<h1 align="center">V2Bar</h1>
 
-<div align="center">
+<p align="center">一款原生 macOS 菜单栏工具，快速查看 V2EX 账户信息与最近通知。</p>
 
-[![Platform](https://img.shields.io/badge/platform-macOS%2014%2B-brightgreen)](https://github.com/ygsgdbd/V2Bar/releases/latest)
-[![Swift](https://img.shields.io/badge/Swift-5.9-orange)](https://github.com/ygsgdbd/V2Bar)
-[![Tuist](https://img.shields.io/badge/Powered%20by-Tuist-blue)](https://tuist.io)
-[![Xcode](https://img.shields.io/badge/Xcode-26.5%2B-blue)](https://developer.apple.com/xcode/)
-[![SwiftUI](https://img.shields.io/badge/SwiftUI-5.0-blue)](https://developer.apple.com/xcode/swiftui/)
+<p align="center">
+  <img alt="macOS 14+" src="https://img.shields.io/badge/macOS-14%2B-000000?logo=apple&logoColor=white">
+  <img alt="Swift 5.9" src="https://img.shields.io/badge/Swift-5.9-F05138?logo=swift&logoColor=white">
+  <img alt="SwiftUI" src="https://img.shields.io/badge/UI-SwiftUI-0D96F6">
+  <img alt="TCA" src="https://img.shields.io/badge/Architecture-TCA-7C3AED">
+  <img alt="Xcode 26.5" src="https://img.shields.io/badge/Xcode-26.5-147EFB?logo=xcode&logoColor=white">
+  <img alt="Universal Binary" src="https://img.shields.io/badge/Universal-Apple%20Silicon%20%2B%20Intel-555555">
+  <a href="https://github.com/ygsgdbd/V2Bar/releases/latest"><img alt="最新版本" src="https://img.shields.io/github/v/release/ygsgdbd/V2Bar?display_name=tag&sort=semver&label=Release"></a>
+  <a href="https://github.com/ygsgdbd/homebrew-tap"><img alt="Homebrew" src="https://img.shields.io/badge/Homebrew-available-FBB040?logo=homebrew&logoColor=black"></a>
+</p>
 
-</div>
+## 🖼️ 截图预览
 
-V2Bar 是一个简洁优雅的 macOS 菜单栏应用，为你提供快捷的 V2EX 访问体验。✨
+![V2Bar 浅色模式菜单](Screenshots/preview-light.png#gh-light-mode-only)
 
-## 预览 👀
+![V2Bar 暗色模式菜单](Screenshots/preview-dark.png#gh-dark-mode-only)
 
-<div align="center">
-    <img src="Screenshots/preview-light.png" width="48%" alt="V2Bar Light Mode Preview">
-    <img src="Screenshots/preview-dark.png" width="48%" alt="V2Bar Dark Mode Preview">
-</div>
+## ✨ 功能亮点
 
-## 功能特点 ✨
+- **连接 V2EX 账户。** 设置 Personal Access Token 后先验证有效性，再读取账户资料、Token 有效期和头像；Token 可随时更换或移除。
+- **集中查看最近通知。** 将最近通知按主题聚合，区分回复、收藏、感谢和其他事件，并可直接打开相关主题或用户主页。
+- **快速访问常用页面。** 从菜单栏直达 V2EX 首页、时间轴、创建主题、通知和个人设置。
+- **按自己的节奏刷新。** 默认在打开菜单时刷新，也可选择每 5、15、30 分钟刷新或关闭自动刷新。
+- **融入日常使用。** 支持登录时启动，并在菜单栏中显示账户刷新状态；项目已接入 Sparkle 更新入口，将在下一个包含 `appcast.xml` 的 Release 后用于应用内检查更新。
 
-- 🚀 原生 SwiftUI 开发，超低内存占用
-- 🌓 完美支持暗黑模式
-- ⚡️ 便捷的菜单栏操作体验
-- 👤 快速查看消息和个人信息
-- 🔄 支持打开菜单时或定时自动刷新
-- 🚀 支持登录时启动与 Sparkle 应用内更新
-- 🔗 一键导航到 V2EX 各版块
-- ✍️ 便捷创建和浏题
-- 🔒 简单可靠的本地数据存储
-- 📖 开源透明，安全可审计
+## 🪶 原生与轻量
 
-## 为什么选择 V2Bar ✨
+- **原生菜单栏体验。** V2Bar 使用 Swift、SwiftUI 和 The Composable Architecture（TCA）构建，基于 `MenuBarExtra` 与 `LSUIElement` 运行，不包含 Electron 运行时或嵌入式 WebView。
+- **只保留必要状态。** Token 和自动刷新设置通过 macOS 本地存储保存；账户、头像与通知数据从 V2EX 获取，不依赖本项目自建服务端。
+- **跟随系统外观。** 界面使用原生 SwiftUI 菜单控件，自动适配 macOS 浅色与暗色模式。
+- **同时支持新旧 Mac。** Release workflow 使用 Xcode 26.5 构建，并验证发布产物同时包含 `arm64` 与 `x86_64` 架构。
 
-- 🚀 **轻量高效**: 原生 SwiftUI 开发，内存占用低至 40MB，安装包仅 8MB
-- 🔒 **简单可靠**: 本地数据存储，无需担心隐私泄露
-- 👀 **开源透明**: 源代码完全开放，欢迎审计
+## 📦 安装
 
-## 系统要求 🖥
+> [!IMPORTANT]
+> 本 README 描述的是 `main` 分支当前正在开发的版本。GitHub Releases 与 Homebrew 目前仍提供较旧的 `v0.1.1`，其系统要求和功能与本文描述可能不同。通知聚合、自动刷新和登录时启动可从源码构建体验；Sparkle 检查更新需等待下一个包含 `appcast.xml` 的 Release。
 
-- 📱 macOS 14.0 或更高版本
-- 💪 完美支持 Apple Silicon 和 Intel 芯片
+### 系统要求
 
-## 快速开始 🚀
+- macOS 14 Sonoma 或更高版本
+- Apple Silicon 或 Intel Mac（Universal Binary）
 
-1. 📥 完成安装后首次启动 V2Bar
-2. 🔑 登录 V2EX 网站获取 Personal Access Token
-3. 🔒 在 V2Bar 中填入 Token 完成授权
-4. ✨ 开始享受便捷的 V2EX 浏览体验
+### Homebrew
 
-> 💡 提示: Personal Access Token 可以在 V2EX 网站的 [设置页面](https://v2ex.com/settings) 生成。请妥善保管你的 Token。
-
-## 安装方式 📥
-
-### 使用 Homebrew 安装 🍺
+`brew trust` 命令首次随 Homebrew 5.1.15 发布。在 Homebrew 5.1.15–5.x 中，只有启用 `HOMEBREW_REQUIRE_TAP_TRUST=1` 时才会要求信任；从 Homebrew 6.0.0 开始，默认要求显式信任非官方 tap 中的 cask。
 
 ```bash
-# 安装 V2Bar 应用
-brew install ygsgdbd/tap/v2bar
+brew tap ygsgdbd/tap
+brew trust --cask ygsgdbd/tap/v2bar
+brew install --cask v2bar
 ```
 
-### 手动安装 📦
+上述命令只信任 `v2bar` cask，不会信任整个 tap；信任记录通常只需设置一次。详情请参阅 Homebrew 官方的 [Tap Trust 文档](https://docs.brew.sh/Tap-Trust)。
 
-1. 🔍 从 [Releases](https://github.com/ygsgdbd/V2Bar/releases) 页面下载最新版本的 DMG 文件
-2. 💾 打开 DMG 文件并将 V2Bar 拖入 Applications 文件夹
-3. 🚀 从 Applications 文件夹启动 V2Bar
-
-## 开发指南 👨‍💻
-
-本项目使用 [Tuist](https://tuist.io) 进行项目管理，开发前请确保安装以下依赖：
+Homebrew 5.1.14 及更早版本没有 `brew trust`，也不需要执行该命令：
 
 ```bash
-# 安装 Tuist 项目管理工具
+brew tap ygsgdbd/tap
+brew install --cask v2bar
+```
+
+如果执行 `brew trust` 时出现 `Unknown command: trust`，请跳过该命令，或先运行 `brew update` 升级 Homebrew。
+
+更新 Homebrew 安装版：
+
+```bash
+brew upgrade v2bar
+```
+
+如果 Homebrew 提示 `Refusing to load cask ... from untrusted tap`，请先执行：
+
+```bash
+brew trust --cask ygsgdbd/tap/v2bar
+```
+
+然后重新运行安装或升级命令。如果已有安装在升级 Homebrew 后无法更新，也请先信任该 cask，再重试 `brew upgrade v2bar`。
+
+### 手动安装
+
+1. 从[最新 GitHub Release](https://github.com/ygsgdbd/V2Bar/releases/latest) 下载 `V2Bar.dmg`。
+2. 打开 DMG，将 `V2Bar.app` 拖入“应用程序”文件夹。
+3. 从“应用程序”文件夹启动 V2Bar。
+
+### 首次启动与 Gatekeeper
+
+当前公开 Release **没有 Developer ID 签名，也没有经过 notarization（公证）**，macOS 可能阻止首次启动。
+
+1. 在 Finder 中按住 Control 点击或右键点击 `V2Bar.app`，选择**打开**，然后再次确认**打开**。
+2. 如果仍被阻止，请前往**系统设置 → 隐私与安全性**，找到 V2Bar 相关提示，点击**仍要打开**并确认。
+
+仅当 App 来自本仓库的官方 GitHub Releases 且你信任该下载内容时，才应绕过 Gatekeeper。
+
+## 🚀 使用说明
+
+1. 前往 V2EX 的 [Token 设置页面](https://www.v2ex.com/settings/tokens) 创建 Personal Access Token。
+2. 启动 V2Bar，点击菜单栏中的 `V2`，选择“设置 Token”。
+3. 输入 Token；验证通过后，菜单会加载账户资料与最近通知。
+4. 从通知分组查看回复、收藏和感谢，点击通知或“打开主题”跳转到 V2EX。
+5. 在“自动刷新”中选择打开菜单时刷新、每 5/15/30 分钟刷新或关闭。
+6. 使用 `main` 源码构建时，可按需启用“登录时启动”；下一个包含 `appcast.xml` 的 Release 发布后，“检查更新…”才能用于获取后续版本。
+
+> [!NOTE]
+> Personal Access Token 会保存在当前 Mac 上。请妥善保管，不要将其粘贴到 Issue、日志或截图中。
+
+## 🧪 开发与测试
+
+项目使用 [Tuist](https://tuist.dev/) 管理 Xcode 工程，源码目标为 macOS 14.0+、Swift 5.9；Release workflow 使用 Xcode 26.5。
+
+```bash
 brew install tuist
+git clone https://github.com/ygsgdbd/V2Bar.git
+cd V2Bar
+tuist generate --no-open
+open V2Bar.xcworkspace
 ```
 
-克隆项目并生成 Xcode 工程：
+运行与发布 workflow 一致的测试：
 
 ```bash
-# 克隆 V2Bar 项目代码
-git clone https://github.com/ygsgdbd/V2Bar.git
-
-# 进入项目目录
-cd V2Bar
-
-# 使用 Tuist 生成 Xcode 项目文件
-tuist generate
+xcodebuild test \
+  -workspace V2Bar.xcworkspace \
+  -scheme V2Bar \
+  -destination "platform=macOS" \
+  -skipPackagePluginValidation \
+  -skipMacroValidation \
+  CODE_SIGN_IDENTITY="" \
+  CODE_SIGNING_ALLOWED=NO \
+  CODE_SIGNING_REQUIRED=NO
 ```
 
-### 项目结构 
+测试覆盖账户刷新、Token 验证、通知聚合、自动刷新、登录项、系统操作、模型解析和 README 截图配置。
 
-```
-V2Bar/
-├── Sources/
-│   ├── App/          # App 启动与 README demo
-│   ├── Clients/      # 网络与系统依赖
-│   ├── Features/     # TCA Reducer
-│   ├── Models/       # 数据模型
-│   ├── Network/      # V2EX 请求实现
-│   └── Views/        # 原生菜单视图
+如需重新生成 README 截图，请先安装 ImageMagick 与 `rtk`，为终端授予“屏幕与系统音频录制”和“辅助功能”权限，退出其他 V2Bar 实例后执行：
+
+```bash
+./script/generate_readme_screenshots.sh
+./script/validate_readme_screenshots.sh
 ```
 
-### 技术栈 🛠
+## 💬 问题反馈
 
-- 🎯 [SwiftUI](https://developer.apple.com/xcode/swiftui/)
-- 🧭 [The Composable Architecture](https://github.com/pointfreeco/swift-composable-architecture)
-- 🌐 [Alamofire](https://github.com/Alamofire/Alamofire)
-- ✨ [Sparkle](https://github.com/sparkle-project/Sparkle)
-- 📦 [Tuist](https://tuist.io)
-
-## 问题反馈 💭
-
-如果你发现了 bug 或有新功能建议，欢迎提交 [Issue](https://github.com/ygsgdbd/V2Bar/issues) 进行反馈。我们会认真对待每一条反馈意见！ 🙏
-
-## 开源协议 📄
-
-本项目采用 MIT 开源许可证 - 详见 [LICENSE](LICENSE) 文件 ⚖️
+如果遇到问题或有功能建议，请提交 [Issue](https://github.com/ygsgdbd/V2Bar/issues)。反馈问题时请附上 macOS 版本、V2Bar 版本和可复现步骤，并注意移除 Token 等敏感信息。
