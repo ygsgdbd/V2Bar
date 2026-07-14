@@ -1,0 +1,52 @@
+{
+  "fill": {
+    "automatic-gradient": "extended-srgb:0.96500,0.97000,0.98000,1.00000"
+  },
+  "fill-specializations": {
+    "dark": {
+      "automatic-gradient": "extended-srgb:0.03500,0.03800,0.04400,1.00000"
+    },
+    "tinted": {
+      "automatic-gradient": "extended-srgb:0.00000,0.00000,0.00000,0.00000"
+    }
+  },
+  "groups": [
+    {
+      "layers": [
+        {
+          "image-name": "v2bar-mark-default.png",
+          "image-name-specializations": {
+            "dark": "v2bar-mark-dark.png",
+            "tinted": "v2bar-mark-mono.png"
+          },
+          "name": "V2Bar Mark"
+        }
+      ],
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.42
+      },
+      "shadow-specializations": {
+        "dark": {
+          "kind": "neutral",
+          "opacity": 0.64
+        }
+      },
+      "translucency": {
+        "enabled": true,
+        "value": 0.1
+      },
+      "translucency-specializations": {
+        "dark": {
+          "enabled": true,
+          "value": 0.14
+        }
+      }
+    }
+  ],
+  "supported-platforms": {
+    "squares": [
+      "macOS"
+    ]
+  }
+}

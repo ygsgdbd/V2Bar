@@ -1,8 +1,8 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="Screenshots/icon-dark.png">
-    <source media="(prefers-color-scheme: light)" srcset="Screenshots/icon-light.png">
-    <img src="Screenshots/icon-light.png" width="160" height="160" alt="V2Bar 图标">
+    <source media="(prefers-color-scheme: dark)" srcset="Design/AppIcon/Previews/v2bar-icon-dark.png">
+    <source media="(prefers-color-scheme: light)" srcset="Design/AppIcon/Previews/v2bar-icon-default.png">
+    <img src="Design/AppIcon/Previews/v2bar-icon-default.png" width="160" height="160" alt="V2Bar App 图标">
   </picture>
 </p>
 
