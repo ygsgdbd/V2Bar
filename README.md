@@ -1,7 +1,8 @@
 # V2Bar 🌟
 
 <div align="center">
-    <img src="Screenshots/icon.png" width="160" height="160" alt="V2Bar Icon">
+    <img src="Design/AppIcon/Previews/v2bar-icon-default.png" width="150" height="150" alt="V2Bar Light Icon">
+    <img src="Design/AppIcon/Previews/v2bar-icon-dark.png" width="150" height="150" alt="V2Bar Dark Icon">
 </div>
 
 <div align="center">
