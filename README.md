@@ -62,7 +62,7 @@ brew trust --cask ygsgdbd/tap/v2bar
 brew install --cask v2bar
 ```
 
-上述命令只信任 `v2bar` cask，不会信任整个 tap；信任记录通常只需设置一次。详情请参阅 Homebrew 官方的 [Tap Trust 文档](https://docs.brew.sh/Tap-Trust)。
+上述 `brew trust` 命令只允许 Homebrew 加载第三方 `v2bar` cask，不会信任整个 tap；信任记录通常只需设置一次。对应 cask 的自定义 `postflight` 会在安装后移除 V2Bar 的 quarantine 属性，因此 Homebrew 安装版可直接启动。V2Bar 仍未使用 Apple Developer ID 签名且未经 notarization（公证）；`brew trust` 或移除 quarantine 都不代表获得 Apple 或 Gatekeeper 的认证。详情请参阅 Homebrew 官方的 [Tap Trust 文档](https://docs.brew.sh/Tap-Trust)。
 
 Homebrew 5.1.14 及更早版本没有 `brew trust`，也不需要执行该命令：
 
@@ -93,14 +93,24 @@ brew trust --cask ygsgdbd/tap/v2bar
 2. 打开 DMG，将 `V2Bar.app` 拖入“应用程序”文件夹。
 3. 从“应用程序”文件夹启动 V2Bar。
 
-### 首次启动与 Gatekeeper
+### 手动安装版的首次启动与 Gatekeeper
 
-当前公开 Release **没有 Developer ID 签名，也没有经过 notarization（公证）**，macOS 可能阻止首次启动。
+以下步骤仅适用于从 GitHub Release 下载 DMG 的手动安装版。当前公开 Release **没有 Developer ID 签名，也没有经过 notarization（公证）**，macOS 可能阻止首次启动。
 
 1. 在 Finder 中按住 Control 点击或右键点击 `V2Bar.app`，选择**打开**，然后再次确认**打开**。
 2. 如果仍被阻止，请前往**系统设置 → 隐私与安全性**，找到 V2Bar 相关提示，点击**仍要打开**并确认。
 
 仅当 App 来自本仓库的官方 GitHub Releases 且你信任该下载内容时，才应绕过 Gatekeeper。
+
+### 发布产物验证
+
+从下一次采用当前 Release workflow 的版本开始，Release 将提供 `V2Bar.dmg` 的 SHA-256、Sparkle `appcast.xml` 中的 EdDSA 签名，以及 GitHub Artifact Attestation。下载 DMG 后可验证其构建来源：
+
+```bash
+gh attestation verify V2Bar.dmg --repo ygsgdbd/V2Bar
+```
+
+Artifact Attestation 用于验证发布产物的构建来源，不等于 Developer ID 签名或 notarization（公证），也不代表通过 Apple 或 Gatekeeper 认证。
 
 ## 🚀 使用说明
 
