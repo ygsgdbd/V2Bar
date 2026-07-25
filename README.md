@@ -45,7 +45,7 @@
 ## 📦 安装
 
 > [!IMPORTANT]
-> 本 README 描述的是 `main` 分支当前正在开发的版本。GitHub Releases 与 Homebrew 目前仍提供较旧的 `v0.1.1`，其系统要求和功能与本文描述可能不同。通知聚合、自动刷新和登录时启动可从源码构建体验；Sparkle 检查更新需等待下一个包含 `appcast.xml` 的 Release。
+> 本 README 描述的是 `main` 分支当前正在开发的版本。GitHub Releases 与 Homebrew 目前仍提供较旧的 `v0.1.1`，其系统要求和功能与本文描述可能不同。通知聚合、自动刷新和登录时启动可从源码构建体验；下一个 Release 将开始提供 Universal ZIP、Sparkle appcast 和 Artifact Attestation。历史 DMG Release 会继续保留。
 
 ### 系统要求
 
@@ -89,9 +89,19 @@ brew trust --cask ygsgdbd/tap/v2bar
 
 ### 手动安装
 
-1. 从[最新 GitHub Release](https://github.com/ygsgdbd/V2Bar/releases/latest) 下载 `V2Bar.dmg`。
-2. 打开 DMG，将 `V2Bar.app` 拖入“应用程序”文件夹。
-3. 从“应用程序”文件夹启动 V2Bar。
+1. 从[最新 GitHub Release](https://github.com/ygsgdbd/V2Bar/releases/latest) 下载 `V2Bar-macOS-universal.zip`。
+2. 解压 ZIP，将 `V2Bar.app` 移入“应用程序”文件夹。
+3. 从“应用程序”文件夹启动 V2Bar。历史 `v0.1.1` 等版本仍使用 DMG，可继续按对应 Release 资产安装。
+
+### 验证发布来源
+
+从下一个 ZIP Release 开始，可安装 [GitHub CLI](https://cli.github.com/) 后验证 GitHub Actions 生成的 Artifact Attestation：
+
+```bash
+gh attestation verify V2Bar-macOS-universal.zip --repo ygsgdbd/V2Bar
+```
+
+SHA-256 校验值同时发布在对应 Release 的 `checksums.txt` 中。Artifact Attestation、Sparkle EdDSA 与 SHA-256 用于验证来源和完整性，但不能替代 Developer ID 签名或 Apple notarization。
 
 ### 首次启动与 Gatekeeper
 
@@ -119,7 +129,7 @@ brew trust --cask ygsgdbd/tap/v2bar
 项目使用 [Tuist](https://tuist.dev/) 管理 Xcode 工程，源码目标为 macOS 14.0+、Swift 5.9；Release workflow 使用 Xcode 26.5。
 
 ```bash
-brew install tuist
+brew install just tuist
 git clone https://github.com/ygsgdbd/V2Bar.git
 cd V2Bar
 tuist generate --no-open
@@ -129,18 +139,25 @@ open V2Bar.xcworkspace
 运行与发布 workflow 一致的测试：
 
 ```bash
-xcodebuild test \
-  -workspace V2Bar.xcworkspace \
-  -scheme V2Bar \
-  -destination "platform=macOS" \
-  -skipPackagePluginValidation \
-  -skipMacroValidation \
-  CODE_SIGN_IDENTITY="" \
-  CODE_SIGNING_ALLOWED=NO \
-  CODE_SIGNING_REQUIRED=NO
+just check
 ```
 
 测试覆盖账户刷新、Token 验证、通知聚合、自动刷新、登录项、系统操作、模型解析和 README 截图配置。
+
+正式发布必须先通过 PR 合入受保护的 `main`，在 `CHANGELOG.md` 中准备对应版本段，然后创建并推送 annotated tag：
+
+```bash
+git tag -a vX.Y.Z -m "V2Bar vX.Y.Z"
+git push origin vX.Y.Z
+```
+
+如需重跑已有 tag 的发布 workflow，必须从同一个 tag ref 发起：
+
+```bash
+gh workflow run release.yml --ref vX.Y.Z -f release_tag=vX.Y.Z
+```
+
+带后缀的 annotated tag（例如 `vX.Y.Z-beta.1`）会发布为 prerelease，并跳过 Homebrew cask 更新。
 
 如需重新生成 README 截图，请先安装 ImageMagick 与 `rtk`，为终端授予“屏幕与系统音频录制”和“辅助功能”权限，退出其他 V2Bar 实例后执行：
 
