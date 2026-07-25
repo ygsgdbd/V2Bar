@@ -89,9 +89,13 @@ brew trust --cask ygsgdbd/tap/v2bar
 
 ### 手动安装
 
+当前公开的 `v0.1.1` 仍使用 DMG：从对应 [GitHub Release](https://github.com/ygsgdbd/V2Bar/releases/tag/v0.1.1) 下载 `V2Bar.dmg`，打开后将 `V2Bar.app` 拖入“应用程序”文件夹。
+
+从下一个 Release 开始：
+
 1. 从[最新 GitHub Release](https://github.com/ygsgdbd/V2Bar/releases/latest) 下载 `V2Bar-macOS-universal.zip`。
 2. 解压 ZIP，将 `V2Bar.app` 移入“应用程序”文件夹。
-3. 从“应用程序”文件夹启动 V2Bar。历史 `v0.1.1` 等版本仍使用 DMG，可继续按对应 Release 资产安装。
+3. 从“应用程序”文件夹启动 V2Bar。
 
 ### 验证发布来源
 
