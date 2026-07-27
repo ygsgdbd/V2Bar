@@ -2,10 +2,8 @@ import Foundation
 import ProjectDescription
 
 // MARK: - Version
-let appVersion = Environment.appVersion.getString(default: "0.1.1")
+let appVersion = Environment.appVersion.getString(default: "0.2.0")
 let buildVersion = Environment.buildVersion.getString(default: "0")
-let sparklePublicKey = ProcessInfo.processInfo.environment["TUIST_SPARKLE_PUBLIC_KEY"]
-    ?? "iQt5X/HXFWmvB7pKxm7mxHZPXh2FG9UA8fFPmAKcE8I="
 
 // 基础依赖
 let baseDependencies: [TargetDependency] = [
@@ -57,7 +55,7 @@ let baseInfoPlist: [String: Plist.Value] = [
     "NSNetworkingUsageDescription": .string("V2Bar 需要访问网络以获取内容"),
     "SUFeedURL": .string("https://github.com/ygsgdbd/V2Bar/releases/latest/download/appcast.xml"),
     "SUEnableAutomaticChecks": .boolean(false),
-    "SUPublicEDKey": .string(sparklePublicKey)
+    "SUPublicEDKey": .string("PXKEkd6QKqpXltmUKy233T80qTb8iIfjvOwHThSH6vI=")
 ]
 
 // 开发环境额外的 Info.plist 配置

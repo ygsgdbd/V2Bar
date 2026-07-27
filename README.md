@@ -33,7 +33,7 @@
 - **集中查看最近通知。** 将最近通知按主题聚合，区分回复、收藏、感谢和其他事件，并可直接打开相关主题或用户主页。
 - **快速访问常用页面。** 从菜单栏直达 V2EX 首页、时间轴、创建主题、通知和个人设置。
 - **按自己的节奏刷新。** 默认在打开菜单时刷新，也可选择每 5、15、30 分钟刷新或关闭自动刷新。
-- **融入日常使用。** 支持登录时启动，并在菜单栏中显示账户刷新状态；项目已接入 Sparkle 更新入口，将在下一个包含 `appcast.xml` 的 Release 后用于应用内检查更新。
+- **融入日常使用。** 支持登录时启动，并在菜单栏中显示账户刷新状态；自 `v0.2.0` 起提供 Sparkle 更新入口，用于检查后续版本。
 
 ## 🪶 原生与轻量
 
@@ -45,7 +45,7 @@
 ## 📦 安装
 
 > [!IMPORTANT]
-> 本 README 描述的是 `main` 分支当前正在开发的版本。GitHub Releases 与 Homebrew 目前仍提供较旧的 `v0.1.1`，其系统要求和功能与本文描述可能不同。通知聚合、自动刷新和登录时启动可从源码构建体验；下一个 Release 将开始提供 Universal ZIP、Sparkle appcast 和 Artifact Attestation。历史 DMG Release 会继续保留。
+> `v0.1.1` 及更早版本使用历史 DMG，系统要求和功能与本文描述可能不同。自 `v0.2.0` 起，V2Bar 提供 Universal ZIP、Sparkle appcast 和 Artifact Attestation；历史 DMG Release 会继续保留。
 
 ### 系统要求
 
@@ -89,9 +89,9 @@ brew trust --cask ygsgdbd/tap/v2bar
 
 ### 手动安装
 
-当前公开的 `v0.1.1` 仍使用 DMG：从对应 [GitHub Release](https://github.com/ygsgdbd/V2Bar/releases/tag/v0.1.1) 下载 `V2Bar.dmg`，打开后将 `V2Bar.app` 拖入“应用程序”文件夹。
+`v0.1.1` 及更早版本使用 DMG：从对应 [GitHub Release](https://github.com/ygsgdbd/V2Bar/releases/tag/v0.1.1) 下载 `V2Bar.dmg`，打开后将 `V2Bar.app` 拖入“应用程序”文件夹。
 
-从下一个 Release 开始：
+`v0.2.0` 及后续版本：
 
 1. 从[最新 GitHub Release](https://github.com/ygsgdbd/V2Bar/releases/latest) 下载 `V2Bar-macOS-universal.zip`。
 2. 解压 ZIP，将 `V2Bar.app` 移入“应用程序”文件夹。
@@ -99,7 +99,7 @@ brew trust --cask ygsgdbd/tap/v2bar
 
 ### 验证发布来源
 
-从下一个 ZIP Release 开始，可安装 [GitHub CLI](https://cli.github.com/) 后验证 GitHub Actions 生成的 Artifact Attestation：
+从 `v0.2.0` 开始，可安装 [GitHub CLI](https://cli.github.com/) 后验证 GitHub Actions 生成的 Artifact Attestation：
 
 ```bash
 gh attestation verify V2Bar-macOS-universal.zip --repo ygsgdbd/V2Bar
@@ -109,7 +109,7 @@ SHA-256 校验值同时发布在对应 Release 的 `checksums.txt` 中。Artifac
 
 ### 首次启动与 Gatekeeper
 
-当前公开 Release **没有 Developer ID 签名，也没有经过 notarization（公证）**，macOS 可能阻止首次启动。
+V2Bar 的 GitHub Release **没有 Developer ID 签名，也没有经过 notarization（公证）**，macOS 可能阻止首次启动。
 
 1. 在 Finder 中按住 Control 点击或右键点击 `V2Bar.app`，选择**打开**，然后再次确认**打开**。
 2. 如果仍被阻止，请前往**系统设置 → 隐私与安全性**，找到 V2Bar 相关提示，点击**仍要打开**并确认。
@@ -123,7 +123,7 @@ SHA-256 校验值同时发布在对应 Release 的 `checksums.txt` 中。Artifac
 3. 输入 Token；验证通过后，菜单会加载账户资料与最近通知。
 4. 从通知分组查看回复、收藏和感谢，点击通知或“打开主题”跳转到 V2EX。
 5. 在“自动刷新”中选择打开菜单时刷新、每 5/15/30 分钟刷新或关闭。
-6. 使用 `main` 源码构建时，可按需启用“登录时启动”；下一个包含 `appcast.xml` 的 Release 发布后，“检查更新…”才能用于获取后续版本。
+6. 可按需启用“登录时启动”；自 `v0.2.0` 起可使用“检查更新…”，并在后续版本发布后完成应用内升级。
 
 > [!NOTE]
 > Personal Access Token 会保存在当前 Mac 上。请妥善保管，不要将其粘贴到 Issue、日志或截图中。
