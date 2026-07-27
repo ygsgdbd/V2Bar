@@ -21,8 +21,6 @@ jobs:
   build:
     name: Build and Release
     runs-on: macos-26
-    env:
-      SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
 
     steps:
       - name: Checkout
@@ -101,6 +99,7 @@ jobs:
 
       - name: Validate release secrets
         env:
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           IS_PRERELEASE: ${{ steps.release.outputs.prerelease }}
         run: |
@@ -242,6 +241,7 @@ jobs:
       - name: Generate Sparkle appcast
         env:
           RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
         run: |
           mkdir -p DerivedData/SparkleFeed
           cp V2Bar-macOS-universal.zip DerivedData/SparkleFeed/
