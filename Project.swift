@@ -5,7 +5,7 @@ import ProjectDescription
 let appVersion = Environment.appVersion.getString(default: "0.2.0")
 let buildVersion = Environment.buildVersion.getString(default: "0")
 let sparklePublicKey = ProcessInfo.processInfo.environment["TUIST_SPARKLE_PUBLIC_KEY"]
-    ?? "iQt5X/HXFWmvB7pKxm7mxHZPXh2FG9UA8fFPmAKcE8I="
+    ?? "PXKEkd6QKqpXltmUKy233T80qTb8iIfjvOwHThSH6vI="
 
 // 基础依赖
 let baseDependencies: [TargetDependency] = [
