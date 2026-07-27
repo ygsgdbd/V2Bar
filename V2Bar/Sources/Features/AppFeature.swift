@@ -77,6 +77,7 @@ struct AppFeature {
         var isReadmeDemo = false
         var isSettingLaunchAtLogin = false
         var isValidatingToken = false
+        var validatingToken: String?
         var knownNotificationIDs: Set<Int>?
         var lastUpdated: Date?
         var launchAtLoginStatus: LaunchAtLoginStatus = .disabled
@@ -155,7 +156,7 @@ struct AppFeature {
         case task
         case menuPresented
         case menuDismissed
-        case refreshResponse(RefreshResult)
+        case refreshResponse(String, RefreshResult)
         case autoRefreshModeTapped(AutoRefreshMode)
         case autoRefreshTick
         case tokenEditTapped
@@ -221,7 +222,8 @@ struct AppFeature {
                 apply(result, to: &state)
                 return .none
 
-            case let .refreshResponse(result):
+            case let .refreshResponse(token, result):
+                guard token == state.token else { return .none }
                 if state.isMenuPresented {
                     state.isMenuOpenRefreshInFlight = false
                     state.deferredRefresh = result
@@ -269,6 +271,7 @@ struct AppFeature {
                 let token = candidate.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !token.isEmpty else { return .none }
                 state.isValidatingToken = true
+                state.validatingToken = token
                 state.errorMessage = nil
                 return .run { send in
                     do {
@@ -281,15 +284,26 @@ struct AppFeature {
 
             case let .tokenValidationResponse(candidate, result):
                 guard !state.isReadmeDemo else { return .none }
+                guard state.validatingToken == candidate else { return .none }
                 state.isValidatingToken = false
+                state.validatingToken = nil
                 switch result {
                 case let .success(tokenInfo):
-                    resetNotificationTracking(&state)
+                    let storedToken = state.token.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let didChangeAccount = candidate != storedToken
+                    if didChangeAccount {
+                        resetAccountState(&state)
+                    }
                     state.$token.withLock { $0 = candidate }
                     state.tokenInfo = tokenInfo
-                    return .merge(
+                    let refreshEffects = Effect<Action>.merge(
                         startRefresh(&state),
                         autoRefreshEffect(for: state.autoRefreshMode)
+                    )
+                    guard didChangeAccount else { return refreshEffects }
+                    return .concatenate(
+                        .cancel(id: CancelID.refresh),
+                        refreshEffects
                     )
                 case let .failure(error):
                     state.errorMessage = error.localizedDescription
@@ -299,16 +313,10 @@ struct AppFeature {
                 }
 
             case .logoutTapped:
+                state.isValidatingToken = false
+                state.validatingToken = nil
                 state.$token.withLock { $0 = "" }
-                state.avatarData = nil
-                state.deferredRefresh = nil
-                state.errorMessage = nil
-                state.inFlightRefreshes = []
-                state.isMenuOpenRefreshInFlight = false
-                resetNotificationTracking(&state)
-                state.notifications = []
-                state.profile = nil
-                state.tokenInfo = nil
+                resetAccountState(&state)
                 return .merge(
                     .cancel(id: CancelID.refresh),
                     .cancel(id: CancelID.autoRefresh),
@@ -408,6 +416,7 @@ struct AppFeature {
 
             await send(
                 .refreshResponse(
+                    token,
                     RefreshResult(
                         tokenInfo: tokenInfoResult,
                         profile: profileResult,
@@ -475,6 +484,19 @@ struct AppFeature {
     private func resetNotificationTracking(_ state: inout State) {
         state.knownNotificationIDs = nil
         state.newNotificationIDs = []
+    }
+
+    private func resetAccountState(_ state: inout State) {
+        state.avatarData = nil
+        state.deferredRefresh = nil
+        state.errorMessage = nil
+        state.inFlightRefreshes = []
+        state.isMenuOpenRefreshInFlight = false
+        state.lastUpdated = nil
+        resetNotificationTracking(&state)
+        state.notifications = []
+        state.profile = nil
+        state.tokenInfo = nil
     }
 
     private func loadLaunchAtLoginStatus() -> Effect<Action> {

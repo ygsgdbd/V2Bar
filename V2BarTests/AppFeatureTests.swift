@@ -157,7 +157,7 @@ final class AppFeatureTests: XCTestCase {
             notifications: .success([]),
             avatarData: .success(nil)
         )
-        await store.receive(.refreshResponse(refresh)) {
+        await store.receive(.refreshResponse("token", refresh)) {
             $0.deferredRefresh = refresh
             $0.isMenuOpenRefreshInFlight = false
         }
@@ -210,17 +210,33 @@ final class AppFeatureTests: XCTestCase {
 
         await store.send(.tokenPromptResponse("new-token")) {
             $0.isValidatingToken = true
+            $0.validatingToken = "new-token"
             $0.errorMessage = nil
         }
         await store.receive(.tokenValidationResponse("new-token", .failure(.unauthorized))) {
             $0.isValidatingToken = false
+            $0.validatingToken = nil
             $0.errorMessage = V2EXClientError.unauthorized.localizedDescription
         }
         XCTAssertEqual(store.state.token, "old-token")
     }
 
     func testLogoutClearsAccountData() async {
+        let deferredRefresh = RefreshResult(
+            tokenInfo: .success(.fixture),
+            profile: .success(.fixture(username: "old-user")),
+            notifications: .success([.fixture]),
+            avatarData: .success(Data([1]))
+        )
         var state = AppFeature.State(token: "token")
+        state.avatarData = Data([1])
+        state.deferredRefresh = deferredRefresh
+        state.errorMessage = "old error"
+        state.inFlightRefreshes = Set(RefreshDomain.allCases)
+        state.isMenuOpenRefreshInFlight = true
+        state.isValidatingToken = true
+        state.validatingToken = "new-token"
+        state.lastUpdated = Date(timeIntervalSince1970: 1_000)
         state.tokenInfo = .fixture
         state.profile = .fixture(username: "yangguan")
         state.notifications = [.fixture]
@@ -232,6 +248,8 @@ final class AppFeatureTests: XCTestCase {
         }
 
         await store.send(.logoutTapped) {
+            $0.isValidatingToken = false
+            $0.validatingToken = nil
             $0.$token.withLock { $0 = "" }
             $0.tokenInfo = nil
             $0.profile = nil
@@ -241,8 +259,162 @@ final class AppFeatureTests: XCTestCase {
             $0.avatarData = nil
             $0.errorMessage = nil
             $0.inFlightRefreshes = []
+            $0.isMenuOpenRefreshInFlight = false
             $0.deferredRefresh = nil
+            $0.lastUpdated = nil
         }
+
+        await store.send(.tokenValidationResponse("new-token", .success(.fixture(token: "new-token"))))
+        await store.send(.refreshResponse("token", deferredRefresh))
+    }
+
+    func testDifferentValidatedTokenResetsOldAccountBeforePartialRefresh() async {
+        let newToken = "new-token"
+        let validatedInfo = V2EXTokenInfo.fixture(token: newToken)
+        let newNotification = notification(id: 2, topicID: 200, created: 2)
+        let now = Date(timeIntervalSince1970: 2_000)
+        let partialRefresh = RefreshResult(
+            tokenInfo: .success(validatedInfo),
+            profile: .failure(.transport("profile offline")),
+            notifications: .success([newNotification])
+        )
+        var state = AppFeature.State(token: "old-token", autoRefreshMode: .off)
+        state.avatarData = Data([1])
+        state.deferredRefresh = RefreshResult(
+            tokenInfo: .success(.fixture(token: "old-token")),
+            profile: .success(.fixture(username: "old-user")),
+            notifications: .success([.fixture])
+        )
+        state.errorMessage = "old error"
+        state.inFlightRefreshes = [.profile]
+        state.isMenuOpenRefreshInFlight = true
+        state.isValidatingToken = true
+        state.validatingToken = newToken
+        state.knownNotificationIDs = [V2EXNotification.fixture.id]
+        state.lastUpdated = Date(timeIntervalSince1970: 1_000)
+        state.newNotificationIDs = [V2EXNotification.fixture.id]
+        state.notifications = [.fixture]
+        state.profile = .fixture(username: "old-user")
+        state.tokenInfo = .fixture(token: "old-token")
+        let store = TestStore(initialState: state) {
+            AppFeature()
+        } withDependencies: {
+            $0.date.now = now
+            $0.v2exClient.fetchTokenInfo = { _ in validatedInfo }
+            $0.v2exClient.fetchProfile = { _ in throw V2EXClientError.transport("profile offline") }
+            $0.v2exClient.fetchNotifications = { _ in [newNotification] }
+        }
+
+        await store.send(.tokenValidationResponse(newToken, .success(validatedInfo))) {
+            $0.isValidatingToken = false
+            $0.validatingToken = nil
+            $0.$token.withLock { $0 = newToken }
+            $0.avatarData = nil
+            $0.deferredRefresh = nil
+            $0.errorMessage = nil
+            $0.inFlightRefreshes = Set(RefreshDomain.allCases)
+            $0.isMenuOpenRefreshInFlight = false
+            $0.knownNotificationIDs = nil
+            $0.lastUpdated = nil
+            $0.newNotificationIDs = []
+            $0.notifications = []
+            $0.profile = nil
+            $0.tokenInfo = validatedInfo
+        }
+        await store.receive(.refreshResponse(newToken, partialRefresh)) {
+            $0.inFlightRefreshes = []
+            $0.knownNotificationIDs = [newNotification.id]
+            $0.notifications = [newNotification]
+            $0.errorMessage = "profile offline"
+            $0.lastUpdated = now
+        }
+    }
+
+    func testSameValidatedTokenPreservesAccountDataAfterFailedRefresh() async {
+        let token = "same-token"
+        let storedToken = "  same-token\n"
+        let validatedInfo = V2EXTokenInfo.fixture(token: token)
+        let previousUpdate = Date(timeIntervalSince1970: 1_000)
+        let previousProfile = V2EXUserProfile.fixture(username: "same-user")
+        let previousNotification = notification(id: 3, topicID: 300, created: 3)
+        let deferredRefresh = RefreshResult(
+            tokenInfo: .success(validatedInfo),
+            profile: .success(previousProfile),
+            notifications: .success([previousNotification])
+        )
+        let failedRefresh = RefreshResult(
+            tokenInfo: .failure(.transport("token offline")),
+            profile: .failure(.transport("profile offline")),
+            notifications: .failure(.transport("notifications offline"))
+        )
+        var state = AppFeature.State(token: storedToken, autoRefreshMode: .off)
+        state.avatarData = Data([1])
+        state.deferredRefresh = deferredRefresh
+        state.isMenuOpenRefreshInFlight = true
+        state.isValidatingToken = true
+        state.validatingToken = token
+        state.knownNotificationIDs = [previousNotification.id]
+        state.lastUpdated = previousUpdate
+        state.newNotificationIDs = [previousNotification.id]
+        state.notifications = [previousNotification]
+        state.profile = previousProfile
+        state.tokenInfo = validatedInfo
+        let store = TestStore(initialState: state) {
+            AppFeature()
+        } withDependencies: {
+            $0.date.now = Date(timeIntervalSince1970: 2_000)
+            $0.v2exClient.fetchTokenInfo = { _ in throw V2EXClientError.transport("token offline") }
+            $0.v2exClient.fetchProfile = { _ in throw V2EXClientError.transport("profile offline") }
+            $0.v2exClient.fetchNotifications = { _ in throw V2EXClientError.transport("notifications offline") }
+        }
+
+        await store.send(.tokenValidationResponse(token, .success(validatedInfo))) {
+            $0.isValidatingToken = false
+            $0.validatingToken = nil
+            $0.$token.withLock { $0 = token }
+            $0.inFlightRefreshes = Set(RefreshDomain.allCases)
+        }
+        XCTAssertEqual(store.state.avatarData, Data([1]))
+        XCTAssertEqual(store.state.deferredRefresh, deferredRefresh)
+        XCTAssertTrue(store.state.isMenuOpenRefreshInFlight)
+        XCTAssertEqual(store.state.knownNotificationIDs, [previousNotification.id])
+        XCTAssertEqual(store.state.lastUpdated, previousUpdate)
+        XCTAssertEqual(store.state.newNotificationIDs, [previousNotification.id])
+        XCTAssertEqual(store.state.notifications, [previousNotification])
+        XCTAssertEqual(store.state.profile, previousProfile)
+
+        await store.receive(.refreshResponse(token, failedRefresh)) {
+            $0.inFlightRefreshes = []
+            $0.isMenuOpenRefreshInFlight = false
+            $0.errorMessage = "token offline"
+        }
+        XCTAssertEqual(store.state.lastUpdated, previousUpdate)
+        XCTAssertEqual(store.state.profile, previousProfile)
+    }
+
+    func testLateOldTokenRefreshDoesNotOverwriteNewAccount() async {
+        let newProfile = V2EXUserProfile.fixture(username: "new-user")
+        let oldProfile = V2EXUserProfile.fixture(username: "old-user")
+        let newNotification = notification(id: 2, topicID: 200, created: 2)
+        let oldNotification = notification(id: 1, topicID: 100, created: 1)
+        var state = AppFeature.State(token: "new-token")
+        state.avatarData = Data([2])
+        state.knownNotificationIDs = [newNotification.id]
+        state.lastUpdated = Date(timeIntervalSince1970: 2_000)
+        state.notifications = [newNotification]
+        state.profile = newProfile
+        state.tokenInfo = .fixture(token: "new-token")
+        let store = TestStore(initialState: state) {
+            AppFeature()
+        }
+        let oldRefresh = RefreshResult(
+            tokenInfo: .success(.fixture(token: "old-token")),
+            profile: .success(oldProfile),
+            notifications: .success([oldNotification]),
+            avatarData: .success(Data([1]))
+        )
+
+        await store.send(.refreshResponse("old-token", oldRefresh))
     }
 
     func testPartialRefreshPreservesPreviousProfile() async {
@@ -262,7 +434,7 @@ final class AppFeatureTests: XCTestCase {
             $0.date.now = now
         }
 
-        await store.send(.refreshResponse(refresh)) {
+        await store.send(.refreshResponse("token", refresh)) {
             $0.inFlightRefreshes = []
             $0.tokenInfo = .fixture
             $0.knownNotificationIDs = [V2EXNotification.fixture.id]
@@ -290,7 +462,7 @@ final class AppFeatureTests: XCTestCase {
             $0.date.now = Date(timeIntervalSince1970: 2_000)
         }
 
-        await store.send(.refreshResponse(refresh)) {
+        await store.send(.refreshResponse("token", refresh)) {
             $0.inFlightRefreshes = []
             $0.errorMessage = "offline"
         }
@@ -388,15 +560,15 @@ final class AppFeatureTests: XCTestCase {
         }
         store.exhaustivity = .off(showSkippedAssertions: false)
 
-        await store.send(.refreshResponse(refreshResult(notifications: .success([initial]))))
+        await store.send(.refreshResponse("token", refreshResult(notifications: .success([initial]))))
         XCTAssertEqual(store.state.knownNotificationIDs, [initial.id])
         XCTAssertTrue(store.state.newNotificationIDs.isEmpty)
 
-        await store.send(.refreshResponse(refreshResult(notifications: .success([added, initial]))))
+        await store.send(.refreshResponse("token", refreshResult(notifications: .success([added, initial]))))
         XCTAssertEqual(store.state.knownNotificationIDs, [initial.id, added.id])
         XCTAssertEqual(store.state.newNotificationIDs, [added.id])
 
-        await store.send(.refreshResponse(refreshResult(notifications: .success([added, initial]))))
+        await store.send(.refreshResponse("token", refreshResult(notifications: .success([added, initial]))))
         XCTAssertEqual(store.state.newNotificationIDs, [added.id])
     }
 
@@ -454,10 +626,10 @@ final class AppFeatureTests: XCTestCase {
         }
         store.exhaustivity = .off(showSkippedAssertions: false)
 
-        await store.send(.refreshResponse(refreshResult(notifications: .failure(.transport("offline")))))
+        await store.send(.refreshResponse("token", refreshResult(notifications: .failure(.transport("offline")))))
         XCTAssertNil(store.state.knownNotificationIDs)
 
-        await store.send(.refreshResponse(refreshResult(notifications: .success([initial]))))
+        await store.send(.refreshResponse("token", refreshResult(notifications: .success([initial]))))
         XCTAssertEqual(store.state.knownNotificationIDs, [initial.id])
         XCTAssertTrue(store.state.newNotificationIDs.isEmpty)
     }
@@ -499,15 +671,19 @@ final class AppFeatureTests: XCTestCase {
 }
 
 private extension V2EXTokenInfo {
-    static let fixture = Self(
-        token: "token",
-        scope: "everything",
-        expiration: 86_400,
-        goodForDays: 1,
-        totalUsed: 1,
-        lastUsed: 1,
-        created: 1
-    )
+    static let fixture = fixture(token: "token")
+
+    static func fixture(token: String) -> Self {
+        Self(
+            token: token,
+            scope: "everything",
+            expiration: 86_400,
+            goodForDays: 1,
+            totalUsed: 1,
+            lastUsed: 1,
+            created: 1
+        )
+    }
 }
 
 private actor LaunchAtLoginCallRecorder {
