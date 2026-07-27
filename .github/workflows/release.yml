@@ -38,6 +38,8 @@ jobs:
             exit 1
           fi
 
+          git fetch --force origin "refs/tags/${RELEASE_TAG}:refs/tags/${RELEASE_TAG}"
+
           if ! TAG_COMMIT=$(git rev-parse --verify "refs/tags/${RELEASE_TAG}^{commit}" 2>/dev/null); then
             echo "::error title=Invalid release tag::Tag ${RELEASE_TAG} does not exist or does not resolve to a commit."
             exit 1
